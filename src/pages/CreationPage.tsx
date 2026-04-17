@@ -8,6 +8,7 @@ interface CreationPageProps {
   generations: Generation[];
   loadingHistory: boolean;
   onGenerationsChange: (updater: (prev: Generation[]) => Generation[]) => void;
+  onMessage: (message: string | null) => void;
 }
 
 const DEFAULT_FORM: CreationFormState = {
@@ -28,7 +29,7 @@ const DEMO_THUMBNAILS = [
   'https://images.pexels.com/photos/147411/italy-mountains-dawn-daybreak-147411.jpeg?auto=compress&cs=tinysrgb&w=600',
 ];
 
-export default function CreationPage({ generations, loadingHistory, onGenerationsChange }: CreationPageProps) {
+export default function CreationPage({ generations, loadingHistory, onGenerationsChange, onMessage }: CreationPageProps) {
   const [form, setForm] = useState<CreationFormState>(DEFAULT_FORM);
   const [generating, setGenerating] = useState(false);
   const [prefillSource, setPrefillSource] = useState<Generation | null>(null);
@@ -41,6 +42,7 @@ export default function CreationPage({ generations, loadingHistory, onGeneration
     if (generating) return;
     setGenerating(true);
     setPrefillSource(null);
+    onMessage('演示版正在模拟生成流程，结果会在几秒后返回。');
 
     try {
       const newGen = await createGeneration({
@@ -69,7 +71,9 @@ export default function CreationPage({ generations, loadingHistory, onGeneration
       onGenerationsChange(prev =>
         prev.map(g => g.id === newGen.id ? { ...g, ...updates } : g)
       );
-    } catch {
+      onMessage(success ? '演示任务已完成。' : '演示任务生成失败，请重试。');
+    } catch (error) {
+      onMessage(error instanceof Error ? error.message : '创建演示任务失败，请稍后重试。');
     } finally {
       setGenerating(false);
     }
@@ -86,12 +90,14 @@ export default function CreationPage({ generations, loadingHistory, onGeneration
       advancedOpen: false,
     });
     setPrefillSource(g);
+    onMessage(`已载入历史任务：${g.prompt.slice(0, 24)}${g.prompt.length > 24 ? '…' : ''}`);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
+  }, [onMessage]);
 
   const handleRegenerate = async (g: Generation) => {
     if (generating) return;
     setGenerating(true);
+    onMessage('正在重新生成演示任务，请稍候。');
 
     try {
       const newGen = await createGeneration({
@@ -119,7 +125,9 @@ export default function CreationPage({ generations, loadingHistory, onGeneration
       onGenerationsChange(prev =>
         prev.map(gen => gen.id === newGen.id ? { ...gen, ...updates } : gen)
       );
-    } catch {
+      onMessage(success ? '重新生成完成。' : '重新生成失败，请稍后重试。');
+    } catch (error) {
+      onMessage(error instanceof Error ? error.message : '重新生成失败，请稍后重试。');
     } finally {
       setGenerating(false);
     }
@@ -129,7 +137,9 @@ export default function CreationPage({ generations, loadingHistory, onGeneration
     try {
       await deleteGeneration(id);
       onGenerationsChange(prev => prev.filter(g => g.id !== id));
-    } catch {
+      onMessage('记录已删除。');
+    } catch (error) {
+      onMessage(error instanceof Error ? error.message : '删除失败，请稍后重试。');
     }
   };
 
@@ -139,7 +149,9 @@ export default function CreationPage({ generations, loadingHistory, onGeneration
       onGenerationsChange(prev =>
         prev.map(g => g.id === id ? { ...g, is_favorited: !current } : g)
       );
-    } catch {
+      onMessage(!current ? '已加入收藏。' : '已取消收藏。');
+    } catch (error) {
+      onMessage(error instanceof Error ? error.message : '收藏操作失败，请稍后重试。');
     }
   };
 

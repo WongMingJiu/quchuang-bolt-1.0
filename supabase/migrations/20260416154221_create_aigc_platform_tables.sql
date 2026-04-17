@@ -24,7 +24,8 @@
 
   ## Security
   - RLS enabled on all tables
-  - Anon role allowed for demo access (no auth in V1)
+  - Anon role allowed for demo read/create/update access (no auth in V1)
+  - Delete is intentionally not allowed for anon users in public demos
 */
 
 CREATE TABLE IF NOT EXISTS generations (
@@ -59,11 +60,6 @@ CREATE POLICY "Allow anon update on generations"
   TO anon
   USING (true)
   WITH CHECK (true);
-
-CREATE POLICY "Allow anon delete on generations"
-  ON generations FOR DELETE
-  TO anon
-  USING (true);
 
 CREATE INDEX IF NOT EXISTS generations_created_at_idx ON generations(created_at DESC);
 CREATE INDEX IF NOT EXISTS generations_status_idx ON generations(status);

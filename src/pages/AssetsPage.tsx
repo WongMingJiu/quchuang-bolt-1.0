@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Star, Download, Filter, Grid3x3 as Grid3X3, Inbox, Play, Image as ImageIcon } from 'lucide-react';
+import { Star, Download, Filter, Grid3x3 as Grid3X3, Play, Image as ImageIcon } from 'lucide-react';
 import type { Generation, AssetType } from '../types';
 
 interface AssetsPageProps {

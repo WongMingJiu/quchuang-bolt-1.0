@@ -1,7 +1,17 @@
-export type GenerationMode = 'text-to-video' | 'image-to-video' | 'all-reference';
-export type ModelType = 'seedance2.0vip' | 'seedance2.0fast' | 'keling3.0';
-export type AspectRatio = '16:9' | '9:16' | '1:1' | '4:3';
-export type GenerationStatus = 'generating' | 'completed' | 'failed';
+export type GenerationMode = 'omni-reference' | 'image-to-video-first-last' | 'image-to-video' | 'text-to-video';
+export type ModelType = 'seedance2.0';
+export type AspectRatio = '21:9' | '16:9' | '9:16' | '1:1' | '4:3' | '3:4';
+export type GenerationStatus = 'pending' | 'generating' | 'completed' | 'failed';
+export type MediaType = 'image' | 'video' | 'audio';
+
+export interface GenerationAsset {
+  name: string;
+  path: string;
+  publicUrl: string;
+  type: MediaType;
+  size: number;
+  role?: 'reference_image' | 'reference_video' | 'reference_audio' | 'start_frame' | 'end_frame';
+}
 
 export interface Generation {
   id: string;
@@ -10,11 +20,17 @@ export interface Generation {
   model: ModelType;
   aspect_ratio: AspectRatio;
   duration: number;
+  generate_audio: boolean;
+  watermark: boolean;
   status: GenerationStatus;
   video_url: string | null;
   thumbnail_url: string | null;
   is_favorited: boolean;
-  media_uploads: string[];
+  media_uploads: GenerationAsset[];
+  provider: string | null;
+  provider_task_id: string | null;
+  error_message: string | null;
+  completed_at: string | null;
   created_at: string;
 }
 
@@ -24,7 +40,9 @@ export interface CreationFormState {
   model: ModelType;
   aspect_ratio: AspectRatio;
   duration: number;
-  media_uploads: string[];
+  generate_audio: boolean;
+  watermark: boolean;
+  media_uploads: GenerationAsset[];
   advancedOpen: boolean;
 }
 

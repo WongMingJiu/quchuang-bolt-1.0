@@ -3,9 +3,7 @@ import { ChevronDown, Zap } from 'lucide-react';
 import type { ModelQuota } from '../../types';
 
 const quotas: ModelQuota[] = [
-  { model: 'seedance2.0vip', label: 'Seedance 2.0 VIP', remaining: 48, total: 100 },
-  { model: 'seedance2.0fast', label: 'Seedance 2.0 Fast', remaining: 230, total: 500 },
-  { model: 'keling3.0', label: 'Keling 3.0', remaining: 87, total: 200 },
+  { model: 'seedance2.0', label: 'Seedance 2.0', remaining: 278, total: 500 },
 ];
 
 const totalRemaining = quotas.reduce((a, b) => a + b.remaining, 0);
@@ -78,7 +76,7 @@ export default function UserInfo() {
                         width: `${(q.remaining / q.total) * 100}%`,
                         background: q.remaining / q.total > 0.3
                           ? 'linear-gradient(90deg, #1F8BFF, #12D6FF)'
-                          : 'linear-gradient(90deg, #F59E0B, #EF4444)'
+                          : 'linear-gradient(90deg, #F59E0B, #EF4444)',
                       }}
                     />
                   </div>

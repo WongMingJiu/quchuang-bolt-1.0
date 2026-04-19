@@ -39,6 +39,13 @@ function AssetCard({ generation: g, onToggleFavorite }: AssetCardProps) {
           alt={g.prompt}
           className="w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
         />
+      ) : g.video_url ? (
+        <video
+          src={g.video_url}
+          className="w-full object-cover"
+          muted
+          playsInline
+        />
       ) : (
         <div className="w-full aspect-video flex items-center justify-center bg-[#E6EDF5]">
           <ImageIcon size={24} className="text-[#D8E2F0]" />

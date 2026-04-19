@@ -24,7 +24,8 @@ function timeAgo(dateStr: string): string {
 const MODE_LABELS: Record<string, string> = {
   'text-to-video': '文生视频',
   'image-to-video': '图生视频',
-  'all-reference': '全能参考',
+  'image-to-video-first-last': '图生视频-首尾帧',
+  'omni-reference': '全能参考',
 };
 
 export default function HistoryCard({ generation: g, onRefill, onRegenerate, onDelete, onToggleFavorite }: HistoryCardProps) {

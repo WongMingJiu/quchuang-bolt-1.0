@@ -1,10 +1,8 @@
 import { useState } from 'react';
-import { Sparkles, Info, X } from 'lucide-react';
+import { Info, X } from 'lucide-react';
 import type { CreationFormState, Generation } from '../../types';
 import PromptInput from './PromptInput';
 import UploadArea from './UploadArea';
-import ModeSelector from './ModeSelector';
-import AdvancedSettings from './AdvancedSettings';
 
 interface CreationWorkspaceProps {
   form: CreationFormState;
@@ -13,18 +11,35 @@ interface CreationWorkspaceProps {
   generating: boolean;
   prefillSource?: Generation | null;
   onDismissPrefill: () => void;
+  onMessage?: (message: string | null) => void;
 }
 
+const REQUIRED_MEDIA_LABELS = {
+  'omni-reference': '全能参考支持图片、视频、音频混合参考，最多 9 个文件',
+  'image-to-video-first-last': '图生视频-首尾帧必须上传 2 张图片',
+  'image-to-video': '图生视频可上传最多 9 张图片',
+  'text-to-video': '文生视频无需上传参考素材',
+} as const;
+
 export default function CreationWorkspace({
-  form, onFormChange, onGenerate, generating, prefillSource, onDismissPrefill
+  form, onFormChange, onGenerate, generating, prefillSource, onDismissPrefill, onMessage,
 }: CreationWorkspaceProps) {
   const [errors, setErrors] = useState<string[]>([]);
 
   const validate = (): boolean => {
     const errs: string[] = [];
     if (!form.prompt.trim()) errs.push('请输入提示词');
-    if (form.media_uploads.length > 6) errs.push('上传素材不能超过 6 个');
-    if (form.duration < 5 || form.duration > 15) errs.push('视频时长须在 5-15 秒之间');
+    if (form.media_uploads.length > 9) errs.push('上传素材不能超过 9 个');
+    if (form.duration < 4 || form.duration > 15) errs.push('视频时长须在 4-15 秒之间');
+    if (form.mode === 'image-to-video-first-last' && form.media_uploads.length !== 2) {
+      errs.push(REQUIRED_MEDIA_LABELS['image-to-video-first-last']);
+    }
+    if (form.mode === 'image-to-video' && form.media_uploads.some(item => item.type !== 'image')) {
+      errs.push('图生视频仅支持上传图片。');
+    }
+    if (form.mode === 'image-to-video-first-last' && form.media_uploads.some(item => item.type !== 'image')) {
+      errs.push('图生视频-首尾帧仅支持上传图片。');
+    }
     setErrors(errs);
     return errs.length === 0;
   };
@@ -39,7 +54,7 @@ export default function CreationWorkspace({
     <div className="flex flex-col h-full bg-[#F5F7FB]">
       <div className="px-6 py-4 border-b border-[#E6EDF5] bg-white flex-shrink-0">
         <h1 className="text-base font-bold text-[#0F172A]">创作工作台</h1>
-        <p className="text-xs text-[#7B8CA8] mt-0.5">输入提示词或上传素材，开始 AI 视频创作</p>
+        <p className="text-xs text-[#7B8CA8] mt-0.5">模型选择、生成模式选择和视频参数都已收拢到提示词输入框底部工具栏</p>
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
@@ -61,24 +76,24 @@ export default function CreationWorkspace({
           </div>
         )}
 
-        <PromptInput value={form.prompt} onChange={v => onFormChange({ prompt: v })} />
+        <div className="rounded-3xl border border-[#E6EDF5] bg-white px-5 py-5 shadow-sm space-y-4">
+          <PromptInput
+            form={form}
+            generating={generating}
+            onChange={onFormChange}
+            onGenerate={handleGenerate}
+          />
+          <UploadArea
+            uploads={form.media_uploads}
+            mode={form.mode}
+            onChange={uploads => onFormChange({ media_uploads: uploads })}
+            onMessage={onMessage}
+          />
+        </div>
 
-        <UploadArea
-          uploads={form.media_uploads}
-          mode={form.mode}
-          onChange={uploads => onFormChange({ media_uploads: uploads })}
-        />
-
-        <ModeSelector value={form.mode} onChange={mode => onFormChange({ mode })} />
-
-        <AdvancedSettings
-          model={form.model}
-          aspectRatio={form.aspect_ratio}
-          duration={form.duration}
-          onModelChange={model => onFormChange({ model })}
-          onAspectRatioChange={aspect_ratio => onFormChange({ aspect_ratio })}
-          onDurationChange={duration => onFormChange({ duration })}
-        />
+        <div className="px-3 py-2 rounded-lg bg-white border border-[#E6EDF5] text-xs text-[#64748B]">
+          当前模式说明：{REQUIRED_MEDIA_LABELS[form.mode]}
+        </div>
 
         {errors.length > 0 && (
           <div className="space-y-1.5 animate-fade-in">
@@ -90,26 +105,6 @@ export default function CreationWorkspace({
             ))}
           </div>
         )}
-      </div>
-
-      <div className="px-6 py-4 border-t border-[#E6EDF5] bg-white flex-shrink-0">
-        <button
-          onClick={handleGenerate}
-          disabled={generating}
-          className="btn-primary w-full flex items-center justify-center gap-2 text-base h-12 rounded-lg"
-        >
-          {generating ? (
-            <>
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              正在生成...
-            </>
-          ) : (
-            <>
-              <Sparkles size={18} />
-              立即生成
-            </>
-          )}
-        </button>
       </div>
     </div>
   );

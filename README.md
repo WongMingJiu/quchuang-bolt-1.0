@@ -1,6 +1,6 @@
 # quchuang-bolt-1.0
 
-一个基于 `Vite + React + TypeScript + Supabase` 的 AIGC 视频创作演示项目。
+一个基于 `Vite + React + TypeScript + Supabase + Vercel Functions` 的 AIGC 视频创作项目，现已支持对接火山方舟 `Seedance 2.0` 企业版。
 
 ## 本地开发
 
@@ -10,6 +10,9 @@
 ```env
 VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
+ARK_API_KEY=your-ark-api-key
+ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
 ```
 
 3. 启动开发服务：`npm run dev -- --host 0.0.0.0`
@@ -19,18 +22,58 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 
 - 开发环境未配置 Supabase 时，应用会自动进入本地 demo 模式，便于预览 UI。
 - 生产构建若缺少 `VITE_SUPABASE_URL` 或 `VITE_SUPABASE_ANON_KEY`，应用会直接报错，避免误发布成 demo 数据源。
+- 真实 Seedance 生成需要同时配置 `ARK_API_KEY` 与 `SUPABASE_SERVICE_ROLE_KEY`。
 
 ## Supabase 初始化
 
-项目自带建表 SQL：`supabase/migrations/20260416154221_create_aigc_platform_tables.sql`
+项目自带建表 SQL：
+- `supabase/migrations/20260416154221_create_aigc_platform_tables.sql`
+- `supabase/migrations/20260418123000_add_seedance_task_fields.sql`
+- `supabase/migrations/20260419100000_sync_generation_modes_and_audio.sql`
 
-在 Supabase 控制台的 `SQL Editor` 中执行该文件内容，可完成：
+在 Supabase 控制台的 `SQL Editor` 中按顺序执行上述文件，可完成：
 - 创建 `generations` 表
 - 开启 RLS
 - 配置演示站点所需的匿名 `SELECT / INSERT / UPDATE` 权限
+- 新增 Seedance 任务追踪字段
+- 同步最新 4 种模式约束
+- 新增 `generate_audio` / `watermark`
 - 插入示例数据
 
 > 演示版默认不允许匿名 `DELETE`，避免公开站点被任意清空数据。
+
+## Supabase Storage 配置
+
+请创建公开 bucket：`generation-assets`
+
+用途：
+- 存放图生视频的参考图片
+- 存放视频生视频的参考视频
+- 生成前端上传素材后，使用公开 URL 交给 Seedance
+
+## Seedance 接入说明
+
+当前已支持四种模式：
+- `omni-reference`：图片 / 视频 / 音频混合参考，最多 9 个文件
+- `image-to-video-first-last`：必须上传 2 张图片（首帧 / 尾帧）
+- `image-to-video`：最多 9 张图片
+- `text-to-video`：无需上传素材
+
+支持文件类型：
+- 图片：`jpeg` `jpg` `png` `webp` `bmp` `tiff` `gif`
+- 视频：`mp4` `mov`
+- 音频：`wav` `mp3`
+
+服务端通过 Vercel API Routes 调用火山方舟：
+- `POST /api/generate`
+- `GET /api/generate/:id`
+
+Seedance 相关环境变量：
+- `ARK_API_KEY`
+- `ARK_BASE_URL`（可选，默认 `https://ark.cn-beijing.volces.com/api/v3`）
+
+Supabase 服务端环境变量：
+- `SUPABASE_SERVICE_ROLE_KEY`
 
 ## 发布准备
 
@@ -46,24 +89,33 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
+- `ARK_API_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- 可选：`ARK_BASE_URL`
 
 ### 推荐发布平台
 
 - Vercel
-- Netlify
-- 任意支持静态文件托管的平台
 
-### Vercel / Netlify 配置
+### Vercel 配置
 
 - Build Command: `npm run build`
 - Output Directory: `dist`
 - Node 版本建议：`20+`
+- 将以上环境变量添加到 `Production / Preview / Development`
 
-## 演示版限制
+## 当前实现范围
 
-- “立即生成” 当前仍为前端模拟生成流程，不会调用真实 AI 视频接口。
-- 为支持演示体验，匿名用户仍可创建与更新任务记录（例如收藏、状态回写）。
-- 如果需要正式商用发布，建议新增鉴权、后端任务队列、对象存储和更严格的 RLS 策略。
+- 已接入真实 Seedance 异步任务创建与查询
+- 前端支持素材上传到 Supabase Storage
+- 历史记录与资产页可展示真实任务结果
+
+## 后续建议
+
+- 给 `generation-assets` bucket 加更细的访问策略
+- 增加 webhook 回调，替代前端轮询
+- 为企业版增加鉴权、用户体系和额度控制
+- 增加失败重试与任务取消能力
 
 ## 校验命令
 

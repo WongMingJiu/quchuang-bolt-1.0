@@ -68,14 +68,25 @@ function getAssetIcon(asset: GenerationAsset) {
   return <Music4 size={14} className="text-[#1F8BFF]" />;
 }
 
+function getMentionTokenAtCursor(prompt: string, cursor: number) {
+  const prefix = prompt.slice(0, cursor);
+  const match = prefix.match(/(^|\s)(@[^\s]+)$/);
+  if (!match) return null;
+  const token = match[2];
+  const start = cursor - token.length;
+  return { token, start, end: cursor };
+}
+
 export default function PromptInput({ form, generating, onChange, onGenerate }: PromptInputProps) {
   const [modeOpen, setModeOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [mentionOpen, setMentionOpen] = useState(false);
   const [mentionFilter, setMentionFilter] = useState('');
+  const [activeMentionIndex, setActiveMentionIndex] = useState(0);
   const modeRef = useRef<HTMLDivElement>(null);
   const settingsRef = useRef<HTMLDivElement>(null);
   const mentionRef = useRef<HTMLDivElement>(null);
+  const mentionItemsRef = useRef<Array<HTMLButtonElement | null>>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
 
@@ -107,17 +118,25 @@ export default function PromptInput({ form, generating, onChange, onGenerate }: 
 
   const highlightedPrompt = useMemo(() => renderHighlightedPrompt(form.prompt, form.media_uploads), [form.prompt, form.media_uploads]);
 
+  useEffect(() => {
+    setActiveMentionIndex(0);
+  }, [mentionFilter, mentionOpen]);
+
+  useEffect(() => {
+    if (!mentionOpen) return;
+    const activeItem = mentionItemsRef.current[activeMentionIndex];
+    activeItem?.scrollIntoView({ block: 'nearest' });
+  }, [activeMentionIndex, mentionOpen]);
+
   const syncOverlayScroll = () => {
     if (!textareaRef.current || !overlayRef.current) return;
     overlayRef.current.scrollTop = textareaRef.current.scrollTop;
     overlayRef.current.scrollLeft = textareaRef.current.scrollLeft;
   };
 
-  const insertAtCursor = (value: string) => {
+  const replaceRange = (start: number, end: number, value: string) => {
     const textarea = textareaRef.current;
     if (!textarea) return;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
     const nextValue = `${form.prompt.slice(0, start)}${value}${form.prompt.slice(end)}`;
     onChange({ prompt: nextValue.slice(0, MAX_LEN) });
     requestAnimationFrame(() => {
@@ -128,25 +147,23 @@ export default function PromptInput({ form, generating, onChange, onGenerate }: 
     });
   };
 
+  const insertAtCursor = (value: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    replaceRange(textarea.selectionStart, textarea.selectionEnd, value);
+  };
+
   const insertMention = (asset: GenerationAsset) => {
     const textarea = textareaRef.current;
     if (!textarea) return;
     const cursor = textarea.selectionStart;
-    const prefix = form.prompt.slice(0, cursor);
-    const atIndex = prefix.lastIndexOf('@');
+    const tokenInfo = getMentionTokenAtCursor(form.prompt, cursor);
     const replacement = `@${asset.displayName} `;
 
-    if (atIndex === -1) {
+    if (!tokenInfo) {
       insertAtCursor(replacement);
     } else {
-      const nextValue = `${form.prompt.slice(0, atIndex)}${replacement}${form.prompt.slice(cursor)}`;
-      onChange({ prompt: nextValue.slice(0, MAX_LEN) });
-      requestAnimationFrame(() => {
-        textarea.focus();
-        const nextCursor = atIndex + replacement.length;
-        textarea.setSelectionRange(nextCursor, nextCursor);
-        syncOverlayScroll();
-      });
+      replaceRange(tokenInfo.start, tokenInfo.end, replacement);
     }
 
     setMentionOpen(false);
@@ -198,6 +215,44 @@ export default function PromptInput({ form, generating, onChange, onGenerate }: 
     setMentionFilter('');
   };
 
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (mentionOpen && filteredAssets.length > 0) {
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        setActiveMentionIndex(prev => (prev + 1) % filteredAssets.length);
+        return;
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        setActiveMentionIndex(prev => (prev - 1 + filteredAssets.length) % filteredAssets.length);
+        return;
+      }
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        insertMention(filteredAssets[activeMentionIndex]);
+        return;
+      }
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setMentionOpen(false);
+        setMentionFilter('');
+        return;
+      }
+    }
+
+    if ((event.key === 'Backspace' || event.key === 'Delete') && textareaRef.current) {
+      const textarea = textareaRef.current;
+      const cursor = textarea.selectionStart;
+      if (textarea.selectionStart === textarea.selectionEnd) {
+        const tokenInfo = getMentionTokenAtCursor(form.prompt, cursor);
+        if (tokenInfo && form.media_uploads.some(asset => `@${asset.displayName}` === tokenInfo.token)) {
+          event.preventDefault();
+          replaceRange(tokenInfo.start, tokenInfo.end + (form.prompt[tokenInfo.end] === ' ' ? 1 : 0), '');
+        }
+      }
+    }
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-2.5">
@@ -220,6 +275,7 @@ export default function PromptInput({ form, generating, onChange, onGenerate }: 
             ref={textareaRef}
             value={form.prompt}
             onChange={e => handlePromptChange(e.target.value)}
+            onKeyDown={handleKeyDown}
             onPaste={handlePaste}
             onScroll={syncOverlayScroll}
             placeholder="描述你想生成的视频内容，支持直接粘贴图片/视频/音频文件，并输入 @ 引用已上传资产..."
@@ -247,12 +303,15 @@ export default function PromptInput({ form, generating, onChange, onGenerate }: 
                 <p className="text-xs text-[#94A3B8] mt-1">输入 @ 后从已上传资产中选择</p>
               </div>
               <div className="max-h-[260px] overflow-y-auto p-2">
-                {filteredAssets.map(asset => (
+                {filteredAssets.map((asset, index) => (
                   <button
                     key={asset.path}
+                    ref={element => { mentionItemsRef.current[index] = element; }}
                     type="button"
                     onClick={() => insertMention(asset)}
-                    className="w-full flex items-center gap-3 rounded-xl px-3 py-2 text-left transition-all hover:bg-[#F8FAFC]"
+                    className={`w-full flex items-center gap-3 rounded-xl px-3 py-2 text-left transition-all ${
+                      index === activeMentionIndex ? 'bg-[#EEF4FF]' : 'hover:bg-[#F8FAFC]'
+                    }`}
                   >
                     <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#F5F9FF] border border-[#EAF2FF] shrink-0 overflow-hidden">
                       {getAssetIcon(asset)}

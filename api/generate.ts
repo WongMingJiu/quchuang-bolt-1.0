@@ -23,7 +23,7 @@ function buildContent(mode: GenerationMode, prompt: string, uploads: GenerationA
         content.push({
           type: 'image_url',
           image_url: { url: item.publicUrl },
-          role: item.role === 'start_frame' || item.role === 'end_frame' ? item.role : 'reference_image',
+          role: item.role === 'first_frame' || item.role === 'last_frame' ? item.role : 'reference_image',
         });
       });
   }

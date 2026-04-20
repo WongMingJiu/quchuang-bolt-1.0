@@ -63,7 +63,7 @@ function withSemanticRoles(mode: GenerationMode, assets: GenerationAsset[]): Gen
   if (mode === 'image-to-video-first-last') {
     return assets.map((asset, index): GenerationAsset => ({
       ...asset,
-      role: index === 0 ? 'start_frame' : index === 1 ? 'end_frame' : 'reference_image',
+      role: index === 0 ? 'first_frame' : index === 1 ? 'last_frame' : 'reference_image',
     }));
   }
 

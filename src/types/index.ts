@@ -10,7 +10,7 @@ export interface GenerationAsset {
   publicUrl: string;
   type: MediaType;
   size: number;
-  role?: 'reference_image' | 'reference_video' | 'reference_audio' | 'start_frame' | 'end_frame';
+  role?: 'reference_image' | 'reference_video' | 'reference_audio' | 'first_frame' | 'last_frame';
 }
 
 export interface Generation {
@@ -25,6 +25,7 @@ export interface Generation {
   status: GenerationStatus;
   video_url: string | null;
   thumbnail_url: string | null;
+  last_frame_url: string | null;
   is_favorited: boolean;
   media_uploads: GenerationAsset[];
   provider: string | null;

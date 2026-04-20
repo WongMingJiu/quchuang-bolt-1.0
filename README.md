@@ -30,6 +30,7 @@ SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
 - `supabase/migrations/20260416154221_create_aigc_platform_tables.sql`
 - `supabase/migrations/20260418123000_add_seedance_task_fields.sql`
 - `supabase/migrations/20260419100000_sync_generation_modes_and_audio.sql`
+- `supabase/migrations/20260420093000_add_last_frame_url.sql`
 
 在 Supabase 控制台的 `SQL Editor` 中按顺序执行上述文件，可完成：
 - 创建 `generations` 表
@@ -38,6 +39,7 @@ SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
 - 新增 Seedance 任务追踪字段
 - 同步最新 4 种模式约束
 - 新增 `generate_audio` / `watermark`
+- 新增 `last_frame_url`
 - 插入示例数据
 
 > 演示版默认不允许匿名 `DELETE`，避免公开站点被任意清空数据。

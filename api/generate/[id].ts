@@ -2,26 +2,19 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { arkFetch, serverSupabase } from '../_seedance';
 
 function extractTaskVideoUrl(payload: any): string | null {
-  const content = payload?.content;
-  if (Array.isArray(content)) {
-    const videoItem = content.find((item: any) => item?.video_url?.url || item?.video_url || item?.type === 'video_url');
-    if (videoItem?.video_url?.url) return videoItem.video_url.url;
-    if (typeof videoItem?.video_url === 'string') return videoItem.video_url;
-  }
-
-  if (payload?.content?.video_url) {
-    return payload.content.video_url;
-  }
-
-  return payload?.video_url ?? payload?.result?.video_url ?? null;
+  return payload?.content?.video_url ?? null;
 }
 
 function extractTaskThumbnailUrl(payload: any): string | null {
-  return payload?.thumbnail_url ?? payload?.cover_url ?? payload?.result?.thumbnail_url ?? payload?.result?.cover_url ?? null;
+  return payload?.content?.thumbnail_url ?? payload?.thumbnail_url ?? null;
+}
+
+function extractTaskLastFrameUrl(payload: any): string | null {
+  return payload?.content?.last_frame_url ?? payload?.last_frame_url ?? null;
 }
 
 function extractTaskError(payload: any): string | null {
-  return payload?.error?.message ?? payload?.error_message ?? payload?.message ?? (typeof payload?.error === 'string' ? payload.error : null);
+  return payload?.error?.message ?? payload?.error_message ?? (typeof payload?.error === 'string' ? payload.error : null);
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -57,6 +50,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const status = arkResponse.status;
     const videoUrl = extractTaskVideoUrl(arkResponse);
     const thumbnailUrl = extractTaskThumbnailUrl(arkResponse) ?? generation.thumbnail_url ?? null;
+    const lastFrameUrl = extractTaskLastFrameUrl(arkResponse) ?? generation.last_frame_url ?? null;
     const updatePayload: Record<string, unknown> = {
       provider: 'seedance',
       error_message: null,
@@ -66,6 +60,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       updatePayload.status = 'completed';
       updatePayload.video_url = videoUrl;
       updatePayload.thumbnail_url = thumbnailUrl;
+      updatePayload.last_frame_url = lastFrameUrl;
       updatePayload.completed_at = new Date().toISOString();
     } else if (status === 'failed') {
       updatePayload.status = 'failed';

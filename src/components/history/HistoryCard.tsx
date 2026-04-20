@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
-import { CreditCard as Edit3, RefreshCw, Trash2, Star, Download, Zap, ArrowUpCircle, Clock, AlertCircle, Loader } from 'lucide-react';
+import { CreditCard as Edit3, RefreshCw, Trash2, Star, Download, Zap, ArrowUpCircle, Clock, AlertCircle, Loader, Play } from 'lucide-react';
 import type { Generation } from '../../types';
 
 interface HistoryCardProps {
@@ -31,10 +31,12 @@ const MODE_LABELS: Record<string, string> = {
 export default function HistoryCard({ generation: g, onRefill, onRegenerate, onDelete, onToggleFavorite }: HistoryCardProps) {
   const [hovered, setHovered] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const [playing, setPlaying] = useState(false);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const handleMouseEnter = useCallback(() => {
-    hoverTimer.current = setTimeout(() => setHovered(true), 500);
+    hoverTimer.current = setTimeout(() => setHovered(true), 300);
   }, []);
 
   const handleMouseLeave = useCallback(() => {
@@ -44,6 +46,20 @@ export default function HistoryCard({ generation: g, onRefill, onRegenerate, onD
 
   const isGenerating = g.status === 'generating';
   const isFailed = g.status === 'failed';
+  const isCompleted = g.status === 'completed';
+  const previewImage = g.thumbnail_url ?? g.last_frame_url;
+
+  const handlePlayPreview = async () => {
+    if (!g.video_url || !videoRef.current) return;
+    setPlaying(true);
+    await videoRef.current.play();
+  };
+
+  const handlePausePreview = () => {
+    if (!videoRef.current) return;
+    videoRef.current.pause();
+    setPlaying(false);
+  };
 
   return (
     <div className="card overflow-hidden group transition-all duration-200 hover:shadow-elevated hover:border-[#B6E7FF] animate-fade-in">
@@ -53,11 +69,20 @@ export default function HistoryCard({ generation: g, onRefill, onRegenerate, onD
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        {g.thumbnail_url && !isGenerating ? (
+        {isCompleted && previewImage ? (
           <img
-            src={g.thumbnail_url}
+            src={previewImage}
             alt={g.prompt}
             className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : isCompleted && g.video_url ? (
+          <video
+            ref={videoRef}
+            src={g.video_url}
+            poster={previewImage ?? undefined}
+            className="absolute inset-0 w-full h-full object-cover"
+            playsInline
+            onEnded={() => setPlaying(false)}
           />
         ) : (
           <div className="absolute inset-0 bg-gradient-to-br from-[#EEF4FA] to-[#D8E2F0] flex items-center justify-center">
@@ -66,10 +91,15 @@ export default function HistoryCard({ generation: g, onRefill, onRegenerate, onD
                 <Loader size={24} className="text-[#1F8BFF] animate-spin" />
                 <span className="text-xs text-[#7B8CA8]">生成中...</span>
               </div>
-            ) : (
+            ) : isFailed ? (
               <div className="flex flex-col items-center gap-2">
                 <AlertCircle size={24} className="text-[#EF4444]" />
                 <span className="text-xs text-[#EF4444]">生成失败</span>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-2">
+                <Play size={24} className="text-[#94A3B8]" />
+                <span className="text-xs text-[#7B8CA8]">暂无预览</span>
               </div>
             )}
           </div>
@@ -86,7 +116,26 @@ export default function HistoryCard({ generation: g, onRefill, onRegenerate, onD
           </div>
         )}
 
-        {g.status === 'completed' && hovered && (
+        {isCompleted && g.video_url && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (playing) {
+                handlePausePreview();
+              } else {
+                void handlePlayPreview();
+              }
+            }}
+            className="absolute inset-0 flex items-center justify-center bg-[rgba(15,23,42,0.15)] opacity-100 transition-opacity"
+          >
+            <div className="w-11 h-11 rounded-full bg-[rgba(255,255,255,0.92)] flex items-center justify-center shadow-lg">
+              <Play size={17} className="text-[#0F172A] ml-0.5" fill="#0F172A" />
+            </div>
+          </button>
+        )}
+
+        {isCompleted && hovered && (
           <div className="absolute bottom-2 right-2 flex items-center gap-1.5 glass-dark px-2.5 py-1.5 rounded-lg animate-fade-in">
             <button className="flex items-center gap-1 text-[#12D6FF] hover:text-white transition-colors text-xs font-medium">
               <Zap size={11} />

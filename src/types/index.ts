@@ -6,6 +6,7 @@ export type MediaType = 'image' | 'video' | 'audio';
 
 export interface GenerationAsset {
   name: string;
+  displayName: string;
   path: string;
   publicUrl: string;
   type: MediaType;

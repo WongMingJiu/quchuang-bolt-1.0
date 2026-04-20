@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Star, Download, Filter, Grid3x3 as Grid3X3, Play, Image as ImageIcon } from 'lucide-react';
+import { Star, Download, Filter, Grid3x3 as Grid3X3, Play, Image as ImageIcon, Pause } from 'lucide-react';
 import type { Generation, AssetType } from '../types';
 
 interface AssetsPageProps {
@@ -25,6 +25,7 @@ interface AssetCardProps {
 
 function AssetCard({ generation: g, onToggleFavorite }: AssetCardProps) {
   const [hovered, setHovered] = useState(false);
+  const [playing, setPlaying] = useState(false);
 
   return (
     <div
@@ -33,9 +34,9 @@ function AssetCard({ generation: g, onToggleFavorite }: AssetCardProps) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {g.thumbnail_url ? (
+      {g.thumbnail_url || g.last_frame_url ? (
         <img
-          src={g.thumbnail_url}
+          src={g.thumbnail_url ?? g.last_frame_url ?? undefined}
           alt={g.prompt}
           className="w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
         />
@@ -52,16 +53,34 @@ function AssetCard({ generation: g, onToggleFavorite }: AssetCardProps) {
         </div>
       )}
 
-      {g.thumbnail_url && (
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-[rgba(15,23,42,0.3)]">
-          <div className="w-10 h-10 rounded-full bg-[rgba(255,255,255,0.9)] flex items-center justify-center">
-            <Play size={16} className="text-[#0F172A] ml-0.5" fill="#0F172A" />
+      {g.video_url && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            const video = e.currentTarget.parentElement?.querySelector('video') as HTMLVideoElement | null;
+            if (!video) {
+              window.open(g.video_url ?? undefined, '_blank');
+              return;
+            }
+            if (video.paused) {
+              void video.play();
+              setPlaying(true);
+            } else {
+              video.pause();
+              setPlaying(false);
+            }
+          }}
+          className="absolute inset-0 flex items-center justify-center bg-[rgba(15,23,42,0.18)] opacity-100 transition-opacity duration-200"
+        >
+          <div className="w-10 h-10 rounded-full bg-[rgba(255,255,255,0.92)] flex items-center justify-center shadow-lg">
+            {playing ? <Pause size={16} className="text-[#0F172A]" /> : <Play size={16} className="text-[#0F172A] ml-0.5" fill="#0F172A" />}
           </div>
-        </div>
+        </button>
       )}
 
       {hovered && (
-        <div className="absolute top-2 right-2 flex items-center gap-1 animate-fade-in">
+        <div className="absolute top-2 right-2 flex items-center gap-1 animate-fade-in z-10">
           <button
             onClick={(e) => { e.stopPropagation(); onToggleFavorite(g.id, g.is_favorited); }}
             className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-150 ${
@@ -111,7 +130,7 @@ export default function AssetsPage({ generations, onToggleFavorite }: AssetsPage
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
 
   const completed = useMemo(() =>
-    generations.filter(g => g.status === 'completed'), [generations]);
+    generations.filter((g: Generation) => g.status === 'completed'), [generations]);
 
   const filtered = useMemo(() => {
     let items = completed;
@@ -211,7 +230,7 @@ export default function AssetsPage({ generations, onToggleFavorite }: AssetsPage
           </div>
         ) : (
           <div className="space-y-8">
-            {Array.from(grouped.entries()).map(([date, items]) => (
+            {Array.from(grouped.entries()).map(([date, items]: [string, Generation[]]) => (
               <div key={date}>
                 <div className="flex items-center gap-3 mb-4">
                   <span className="text-xs font-semibold text-[#7B8CA8] uppercase tracking-wider">{date}</span>
@@ -219,7 +238,7 @@ export default function AssetsPage({ generations, onToggleFavorite }: AssetsPage
                   <span className="text-xs text-[#94A3B8]">{items.length} 个</span>
                 </div>
                 <div style={{ columns: '3 240px', gap: '12px' }}>
-                  {items.map(g => (
+                  {items.map((g: Generation) => (
                     <AssetCard key={g.id} generation={g} onToggleFavorite={onToggleFavorite} />
                   ))}
                 </div>

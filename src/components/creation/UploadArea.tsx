@@ -42,6 +42,13 @@ function getMediaType(file: File): MediaType {
   return 'image';
 }
 
+function getNextDisplayName(type: MediaType, uploads: GenerationAsset[]) {
+  const count = uploads.filter(asset => asset.type === type).length + 1;
+  if (type === 'image') return `图片${count}`;
+  if (type === 'video') return `视频${count}`;
+  return `音频${count}`;
+}
+
 const assetIcons: Record<MediaType, JSX.Element> = {
   image: <Image size={14} className="text-[#1F8BFF]" />,
   video: <Video size={14} className="text-[#1F8BFF]" />,
@@ -85,6 +92,39 @@ function withSemanticRoles(mode: GenerationMode, assets: GenerationAsset[]): Gen
   return assets;
 }
 
+export async function uploadFilesToAssets({
+  files,
+  uploads,
+  mode,
+}: {
+  files: File[];
+  uploads: GenerationAsset[];
+  mode: GenerationMode;
+}): Promise<GenerationAsset[]> {
+  const limit = mode === 'image-to-video-first-last' ? 2 : MAX_UPLOADS;
+  const nextAssets: GenerationAsset[] = [];
+
+  for (const file of files.slice(0, limit - uploads.length)) {
+    const type = getMediaType(file);
+
+    if ((mode === 'image-to-video' || mode === 'image-to-video-first-last') && type !== 'image') {
+      throw new Error('当前模式下只能上传图片。');
+    }
+
+    if (mode === 'omni-reference' && !['image', 'video', 'audio'].includes(type)) {
+      throw new Error('全能参考模式仅支持图片、视频、音频。');
+    }
+
+    const uploaded = await uploadGenerationAsset(file);
+    nextAssets.push({
+      ...uploaded,
+      displayName: getNextDisplayName(type, [...uploads, ...nextAssets]),
+    });
+  }
+
+  return withSemanticRoles(mode, [...uploads, ...nextAssets].slice(0, limit));
+}
+
 export default function UploadArea({ uploads, mode, onChange, onMessage }: UploadAreaProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -102,35 +142,20 @@ export default function UploadArea({ uploads, mode, onChange, onMessage }: Uploa
     onChange(uploads.filter((_, i) => i !== idx));
   };
 
-  const validateFile = (file: File) => {
-    const type = getMediaType(file);
-
-    if ((mode === 'image-to-video' || mode === 'image-to-video-first-last') && type !== 'image') {
-      throw new Error('当前模式下只能上传图片。');
-    }
-
-    if (mode === 'omni-reference' && !['image', 'video', 'audio'].includes(type)) {
-      throw new Error('全能参考模式仅支持图片、视频、音频。');
-    }
-  };
-
   const handleFiles = async (fileList: FileList | null) => {
     if (!fileList?.length) return;
 
-    const limit = mode === 'image-to-video-first-last' ? 2 : MAX_UPLOADS;
-    const files = Array.from(fileList).slice(0, limit - uploads.length);
     setUploading(true);
     onMessage?.('正在上传参考素材，请稍候。');
 
     try {
-      const nextAssets: GenerationAsset[] = [];
-      for (const file of files) {
-        validateFile(file);
-        const asset = await uploadGenerationAsset(file);
-        nextAssets.push(asset);
-      }
-      onChange(withSemanticRoles(mode, [...uploads, ...nextAssets].slice(0, limit)));
-      onMessage?.(`已上传 ${nextAssets.length} 个素材。`);
+      const nextUploads = await uploadFilesToAssets({
+        files: Array.from(fileList),
+        uploads,
+        mode,
+      });
+      onChange(nextUploads);
+      onMessage?.(`已上传 ${nextUploads.length - uploads.length} 个素材。`);
     } catch (error) {
       onMessage?.(error instanceof Error ? error.message : '素材上传失败，请稍后重试。');
     } finally {
@@ -188,7 +213,7 @@ export default function UploadArea({ uploads, mode, onChange, onMessage }: Uploa
                       </span>
                     )}
                   </div>
-                  <p className="mt-1 truncate text-sm font-medium text-[#0F172A]">{asset.name}</p>
+                  <p className="mt-1 truncate text-sm font-medium text-[#0F172A]">{asset.displayName}</p>
                 </div>
                 <button
                   type="button"

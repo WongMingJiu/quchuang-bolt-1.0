@@ -144,6 +144,7 @@ export async function uploadGenerationAsset(file: File): Promise<GenerationAsset
 
   return {
     name: file.name,
+    displayName: file.name,
     path,
     publicUrl: data.publicUrl,
     type,

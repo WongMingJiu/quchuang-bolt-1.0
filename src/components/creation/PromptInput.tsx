@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, SlidersHorizontal, Sparkles } from 'lucide-react';
-import type { AspectRatio, CreationFormState, GenerationMode, ModelType } from '../../types';
+import { ChevronDown, SlidersHorizontal, Sparkles, Image as ImageIcon, Video, Music4 } from 'lucide-react';
+import type { AspectRatio, CreationFormState, GenerationAsset, GenerationMode, ModelType } from '../../types';
 import ModeSelector from './ModeSelector';
 import AdvancedSettings from './AdvancedSettings';
+import { uploadFilesToAssets } from './UploadArea';
 
 interface PromptInputProps {
   form: CreationFormState;
@@ -33,17 +34,57 @@ const modelLabelMap: Record<ModelType, string> = {
   'seedance2.0': 'Seedance 2.0',
 };
 
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function renderHighlightedPrompt(prompt: string, assets: GenerationAsset[]) {
+  let html = escapeHtml(prompt);
+  for (const asset of assets) {
+    const mention = `@${asset.displayName}`;
+    const escapedMention = escapeHtml(mention);
+    const label = escapeHtml(asset.displayName);
+    html = html.replace(
+      new RegExp(escapedMention.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
+      `<span class="mention-chip">${label}</span>`,
+    );
+  }
+
+  return html.replace(/\n/g, '<br />');
+}
+
+function getAssetIcon(asset: GenerationAsset) {
+  if (asset.type === 'image') {
+    return asset.publicUrl ? <img src={asset.publicUrl} alt={asset.displayName} className="h-8 w-8 rounded-lg object-cover" /> : <ImageIcon size={14} />;
+  }
+  if (asset.type === 'video') {
+    return asset.publicUrl ? <video src={asset.publicUrl} className="h-8 w-8 rounded-lg object-cover" muted playsInline /> : <Video size={14} />;
+  }
+  return <Music4 size={14} className="text-[#1F8BFF]" />;
+}
+
 export default function PromptInput({ form, generating, onChange, onGenerate }: PromptInputProps) {
   const [modeOpen, setModeOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [mentionOpen, setMentionOpen] = useState(false);
+  const [mentionFilter, setMentionFilter] = useState('');
   const modeRef = useRef<HTMLDivElement>(null);
   const settingsRef = useRef<HTMLDivElement>(null);
+  const mentionRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handler = (event: MouseEvent) => {
       const target = event.target as Node;
       if (modeRef.current && !modeRef.current.contains(target)) setModeOpen(false);
       if (settingsRef.current && !settingsRef.current.contains(target)) setSettingsOpen(false);
+      if (mentionRef.current && !mentionRef.current.contains(target)) setMentionOpen(false);
     };
 
     document.addEventListener('mousedown', handler);
@@ -59,6 +100,104 @@ export default function PromptInput({ form, generating, onChange, onGenerate }: 
     { label: '水印', value: form.watermark ? '开启' : '关闭' },
   ]), [form.model, form.mode, form.aspect_ratio, form.duration, form.generate_audio, form.watermark]);
 
+  const filteredAssets = useMemo(() => {
+    if (!mentionFilter) return form.media_uploads;
+    return form.media_uploads.filter(asset => asset.displayName.includes(mentionFilter));
+  }, [form.media_uploads, mentionFilter]);
+
+  const highlightedPrompt = useMemo(() => renderHighlightedPrompt(form.prompt, form.media_uploads), [form.prompt, form.media_uploads]);
+
+  const syncOverlayScroll = () => {
+    if (!textareaRef.current || !overlayRef.current) return;
+    overlayRef.current.scrollTop = textareaRef.current.scrollTop;
+    overlayRef.current.scrollLeft = textareaRef.current.scrollLeft;
+  };
+
+  const insertAtCursor = (value: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const nextValue = `${form.prompt.slice(0, start)}${value}${form.prompt.slice(end)}`;
+    onChange({ prompt: nextValue.slice(0, MAX_LEN) });
+    requestAnimationFrame(() => {
+      textarea.focus();
+      const cursor = start + value.length;
+      textarea.setSelectionRange(cursor, cursor);
+      syncOverlayScroll();
+    });
+  };
+
+  const insertMention = (asset: GenerationAsset) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const cursor = textarea.selectionStart;
+    const prefix = form.prompt.slice(0, cursor);
+    const atIndex = prefix.lastIndexOf('@');
+    const replacement = `@${asset.displayName} `;
+
+    if (atIndex === -1) {
+      insertAtCursor(replacement);
+    } else {
+      const nextValue = `${form.prompt.slice(0, atIndex)}${replacement}${form.prompt.slice(cursor)}`;
+      onChange({ prompt: nextValue.slice(0, MAX_LEN) });
+      requestAnimationFrame(() => {
+        textarea.focus();
+        const nextCursor = atIndex + replacement.length;
+        textarea.setSelectionRange(nextCursor, nextCursor);
+        syncOverlayScroll();
+      });
+    }
+
+    setMentionOpen(false);
+    setMentionFilter('');
+  };
+
+  const handlePaste = async (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const files = Array.from(event.clipboardData.items)
+      .map(item => item.getAsFile())
+      .filter((file): file is File => Boolean(file));
+
+    if (files.length === 0) return;
+
+    event.preventDefault();
+
+    try {
+      const nextUploads = await uploadFilesToAssets({
+        files,
+        uploads: form.media_uploads,
+        mode: form.mode,
+      });
+      const insertedAssets = nextUploads.slice(form.media_uploads.length);
+      onChange({ media_uploads: nextUploads });
+      insertedAssets.forEach(asset => insertAtCursor(`@${asset.displayName} `));
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handlePromptChange = (value: string) => {
+    const nextValue = value.slice(0, MAX_LEN);
+    onChange({ prompt: nextValue });
+
+    const textarea = textareaRef.current;
+    const cursor = textarea?.selectionStart ?? nextValue.length;
+    const prefix = nextValue.slice(0, cursor);
+    const atIndex = prefix.lastIndexOf('@');
+
+    if (atIndex >= 0 && (atIndex === 0 || /\s/.test(prefix[atIndex - 1] ?? ' '))) {
+      const query = prefix.slice(atIndex + 1);
+      if (!query.includes(' ')) {
+        setMentionFilter(query);
+        setMentionOpen(form.media_uploads.length > 0);
+        return;
+      }
+    }
+
+    setMentionOpen(false);
+    setMentionFilter('');
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-2.5">
@@ -69,14 +208,65 @@ export default function PromptInput({ form, generating, onChange, onGenerate }: 
       </div>
 
       <div className="rounded-[28px] border border-[#E6EDF5] bg-white shadow-sm transition-all duration-150 focus-within:border-[#1F8BFF] focus-within:ring-4 focus-within:ring-[rgba(31,139,255,0.08)]">
-        <textarea
-          value={form.prompt}
-          onChange={e => onChange({ prompt: e.target.value.slice(0, MAX_LEN) })}
-          placeholder="描述你想生成的视频内容，例如：一个未来城市的夜晚，霓虹灯倒映在雨后的街道上，行人撑着透明雨伞缓缓走过..."
-          className="w-full resize-none rounded-t-[28px] bg-transparent px-5 py-5 text-sm leading-relaxed text-[#0F172A] outline-none placeholder:text-[#94A3B8]"
-          rows={7}
-          style={{ minHeight: '180px' }}
-        />
+        <div className="relative" ref={mentionRef}>
+          <div
+            ref={overlayRef}
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 overflow-hidden px-5 py-5 text-sm leading-relaxed whitespace-pre-wrap break-words text-transparent"
+            dangerouslySetInnerHTML={{ __html: highlightedPrompt || '&nbsp;' }}
+            style={{ minHeight: '180px' }}
+          />
+          <textarea
+            ref={textareaRef}
+            value={form.prompt}
+            onChange={e => handlePromptChange(e.target.value)}
+            onPaste={handlePaste}
+            onScroll={syncOverlayScroll}
+            placeholder="描述你想生成的视频内容，支持直接粘贴图片/视频/音频文件，并输入 @ 引用已上传资产..."
+            className="relative z-10 w-full resize-none rounded-t-[28px] bg-transparent px-5 py-5 text-sm leading-relaxed text-[#0F172A] outline-none placeholder:text-[#94A3B8]"
+            rows={7}
+            style={{ minHeight: '180px', WebkitTextFillColor: 'transparent', color: 'transparent', caretColor: '#0F172A' }}
+          />
+
+          <style>{`
+            .mention-chip {
+              display: inline-flex;
+              align-items: center;
+              border-radius: 10px;
+              background: rgba(31, 139, 255, 0.12);
+              color: #1f5fff;
+              padding: 1px 8px;
+              font-weight: 600;
+            }
+          `}</style>
+
+          {mentionOpen && filteredAssets.length > 0 && (
+            <div className="absolute left-4 top-4 z-40 w-[320px] rounded-2xl border border-[#E5EAF1] bg-white shadow-[0_16px_40px_rgba(15,23,42,0.12)] overflow-hidden">
+              <div className="border-b border-[#EEF2F7] px-4 py-3">
+                <p className="text-sm font-semibold text-[#0F172A]">引用参考资产</p>
+                <p className="text-xs text-[#94A3B8] mt-1">输入 @ 后从已上传资产中选择</p>
+              </div>
+              <div className="max-h-[260px] overflow-y-auto p-2">
+                {filteredAssets.map(asset => (
+                  <button
+                    key={asset.path}
+                    type="button"
+                    onClick={() => insertMention(asset)}
+                    className="w-full flex items-center gap-3 rounded-xl px-3 py-2 text-left transition-all hover:bg-[#F8FAFC]"
+                  >
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#F5F9FF] border border-[#EAF2FF] shrink-0 overflow-hidden">
+                      {getAssetIcon(asset)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-[#0F172A] truncate">{asset.displayName}</p>
+                      <p className="text-xs text-[#94A3B8] truncate">{asset.name}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="border-t border-[#EEF3F8] bg-[#FAFBFC] px-4 py-3 rounded-b-[28px] space-y-3">
           <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-[#E6EDF5] bg-white px-3 py-2.5 shadow-sm">

@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { arkFetch, mapModel, serverSupabase } from './_seedance';
+import { arkFetch, mapModel, serverSupabase } from './_seedance.js';
 import type { GenerationAsset, GenerationMode } from '../src/types';
 
 interface GenerateRequestBody {

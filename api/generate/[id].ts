@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { arkFetch, serverSupabase } from '../_seedance';
+import { arkFetch, serverSupabase } from '../_seedance.js';
 
 function extractTaskVideoUrl(payload: any): string | null {
   return payload?.content?.video_url ?? null;

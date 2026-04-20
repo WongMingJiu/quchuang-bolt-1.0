@@ -3,6 +3,8 @@ export type ModelType = 'seedance2.0';
 export type AspectRatio = '21:9' | '16:9' | '9:16' | '1:1' | '4:3' | '3:4';
 export type GenerationStatus = 'pending' | 'generating' | 'completed' | 'failed';
 export type MediaType = 'image' | 'video' | 'audio';
+export type CategoryType = '太极' | '唱歌' | '瑜伽' | '普拉提' | '手机摄影';
+export type StoryboardType = '口播类' | '情景类' | 'IP代练';
 
 export interface GenerationAsset {
   name: string;
@@ -19,6 +21,8 @@ export interface Generation {
   prompt: string;
   mode: GenerationMode;
   model: ModelType;
+  category: CategoryType;
+  storyboard_type: StoryboardType;
   aspect_ratio: AspectRatio;
   duration: number;
   generate_audio: boolean;
@@ -40,6 +44,8 @@ export interface CreationFormState {
   prompt: string;
   mode: GenerationMode;
   model: ModelType;
+  category: CategoryType;
+  storyboard_type: StoryboardType;
   aspect_ratio: AspectRatio;
   duration: number;
   generate_audio: boolean;

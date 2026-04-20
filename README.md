@@ -12,6 +12,7 @@ VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 ARK_API_KEY=your-ark-api-key
 ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
+ARK_SEEDANCE_MODEL=doubao-seedance-2-0-260128
 SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
 ```
 
@@ -31,6 +32,7 @@ SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
 - `supabase/migrations/20260418123000_add_seedance_task_fields.sql`
 - `supabase/migrations/20260419100000_sync_generation_modes_and_audio.sql`
 - `supabase/migrations/20260420093000_add_last_frame_url.sql`
+- `supabase/migrations/20260420103000_add_category_and_storyboard_type.sql`
 
 在 Supabase 控制台的 `SQL Editor` 中按顺序执行上述文件，可完成：
 - 创建 `generations` 表
@@ -61,6 +63,10 @@ SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
 - `image-to-video`：最多 9 张图片
 - `text-to-video`：无需上传素材
 
+当前还支持两个业务字段：
+- `所属品类`：太极、唱歌、瑜伽、普拉提、手机摄影
+- `分镜类型`：口播类、情景类、IP代练
+
 支持文件类型：
 - 图片：`jpeg` `jpg` `png` `webp` `bmp` `tiff` `gif`
 - 视频：`mp4` `mov`
@@ -73,6 +79,7 @@ SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
 Seedance 相关环境变量：
 - `ARK_API_KEY`
 - `ARK_BASE_URL`（可选，默认 `https://ark.cn-beijing.volces.com/api/v3`）
+- `ARK_SEEDANCE_MODEL`（可选，默认 `doubao-seedance-2-0-260128`）
 
 Supabase 服务端环境变量：
 - `SUPABASE_SERVICE_ROLE_KEY`

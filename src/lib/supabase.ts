@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import type { Generation, GenerationAsset, GenerationMode } from '../types';
+import type { CategoryType, Generation, GenerationAsset, GenerationMode, StoryboardType } from '../types';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -15,6 +15,8 @@ const demoGenerations: Generation[] = [
     prompt: '一只银白色机械狐狸在霓虹都市屋顶上奔跑，电影感镜头',
     mode: 'text-to-video',
     model: 'seedance2.0',
+    category: '太极',
+    storyboard_type: '口播类',
     aspect_ratio: '16:9',
     duration: 10,
     generate_audio: true,
@@ -36,6 +38,8 @@ const demoGenerations: Generation[] = [
     prompt: '清晨山谷云海延时摄影，金色阳光穿透薄雾',
     mode: 'image-to-video',
     model: 'seedance2.0',
+    category: '太极',
+    storyboard_type: '口播类',
     aspect_ratio: '16:9',
     duration: 5,
     generate_audio: false,
@@ -100,6 +104,8 @@ function normalizeGeneration(row: Partial<Generation>): Generation {
     prompt: row.prompt ?? '',
     mode: normalizeMode(row.mode as GenerationMode | 'all-reference' | 'video-to-video' | undefined),
     model: row.model ?? 'seedance2.0',
+    category: (row.category as CategoryType | undefined) ?? '太极',
+    storyboard_type: (row.storyboard_type as StoryboardType | undefined) ?? '口播类',
     aspect_ratio: row.aspect_ratio ?? '16:9',
     duration: row.duration ?? 5,
     generate_audio: row.generate_audio ?? true,

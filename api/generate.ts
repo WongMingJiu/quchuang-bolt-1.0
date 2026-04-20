@@ -1,11 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { arkFetch, mapModel, serverSupabase } from './_seedance.js';
-import type { GenerationAsset, GenerationMode } from '../src/types';
+import type { CategoryType, GenerationAsset, GenerationMode, StoryboardType } from '../src/types';
 
 interface GenerateRequestBody {
   prompt: string;
   mode: GenerationMode;
   model: string;
+  category: CategoryType;
+  storyboard_type: StoryboardType;
   aspect_ratio: string;
   duration: number;
   generate_audio: boolean;
@@ -57,9 +59,37 @@ function buildContent(mode: GenerationMode, prompt: string, uploads: GenerationA
   return content;
 }
 
+const VALID_RATIOS = new Set(['21:9', '16:9', '4:3', '1:1', '3:4', '9:16']);
+const VALID_CATEGORIES = new Set(['太极', '唱歌', '瑜伽', '普拉提', '手机摄影']);
+const VALID_STORYBOARDS = new Set(['口播类', '情景类', 'IP代练']);
+
 function validatePayload(body: Partial<GenerateRequestBody>) {
   if (!body.prompt?.trim()) {
     throw new Error('Prompt is required.');
+  }
+
+  if (!VALID_RATIOS.has(String(body.aspect_ratio))) {
+    throw new Error('Unsupported aspect ratio.');
+  }
+
+  if (typeof body.duration !== 'number' || body.duration < 4 || body.duration > 15) {
+    throw new Error('Duration must be between 4 and 15 seconds.');
+  }
+
+  if (typeof body.generate_audio !== 'boolean') {
+    throw new Error('generate_audio must be a boolean.');
+  }
+
+  if (typeof body.watermark !== 'boolean') {
+    throw new Error('watermark must be a boolean.');
+  }
+
+  if (!VALID_CATEGORIES.has(String(body.category))) {
+    throw new Error('Unsupported category.');
+  }
+
+  if (!VALID_STORYBOARDS.has(String(body.storyboard_type))) {
+    throw new Error('Unsupported storyboard type.');
   }
 
   if (body.mode === 'image-to-video' && (body.media_uploads ?? []).some(item => item.type !== 'image')) {
@@ -68,8 +98,10 @@ function validatePayload(body: Partial<GenerateRequestBody>) {
 
   if (body.mode === 'image-to-video-first-last') {
     const images = (body.media_uploads ?? []).filter(item => item.type === 'image');
-    if (images.length !== 2 || images.length !== (body.media_uploads ?? []).length) {
-      throw new Error('Image-to-video-first-last requires exactly 2 images.');
+    const firstFrame = (body.media_uploads ?? []).some(item => item.role === 'first_frame');
+    const lastFrame = (body.media_uploads ?? []).some(item => item.role === 'last_frame');
+    if (images.length !== 2 || images.length !== (body.media_uploads ?? []).length || !firstFrame || !lastFrame) {
+      throw new Error('Image-to-video-first-last requires exactly 2 images with first_frame and last_frame roles.');
     }
   }
 
@@ -77,6 +109,7 @@ function validatePayload(body: Partial<GenerateRequestBody>) {
     throw new Error('Omni-reference supports up to 9 files.');
   }
 }
+
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -108,6 +141,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           prompt: body.prompt,
           mode: body.mode,
           model: body.model,
+          category: body.category,
+          storyboard_type: body.storyboard_type,
           aspect_ratio: body.aspect_ratio,
           duration: body.duration,
           generate_audio: body.generate_audio,

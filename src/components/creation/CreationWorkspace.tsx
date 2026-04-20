@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Info, X } from 'lucide-react';
-import type { CreationFormState, Generation } from '../../types';
+import type { CategoryType, CreationFormState, Generation, StoryboardType } from '../../types';
 import PromptInput from './PromptInput';
 import UploadArea from './UploadArea';
 
@@ -20,6 +20,9 @@ const REQUIRED_MEDIA_LABELS = {
   'image-to-video': '图生视频可上传最多 9 张图片',
   'text-to-video': '文生视频无需上传参考素材',
 } as const;
+
+const CATEGORY_OPTIONS: CategoryType[] = ['太极', '唱歌', '瑜伽', '普拉提', '手机摄影'];
+const STORYBOARD_OPTIONS: StoryboardType[] = ['口播类', '情景类', 'IP代练'];
 
 export default function CreationWorkspace({
   form, onFormChange, onGenerate, generating, prefillSource, onDismissPrefill, onMessage,
@@ -75,6 +78,48 @@ export default function CreationWorkspace({
             </button>
           </div>
         )}
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="rounded-2xl border border-[#E6EDF5] bg-white px-4 py-4">
+            <label className="block text-sm font-semibold text-[#0F172A] mb-2">所属品类</label>
+            <div className="flex flex-wrap gap-2">
+              {CATEGORY_OPTIONS.map(option => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => onFormChange({ category: option })}
+                  className={`px-3 py-2 rounded-xl text-sm transition-all ${
+                    form.category === option
+                      ? 'bg-[#EAF3FF] border border-[#1F8BFF] text-[#1F8BFF] font-medium'
+                      : 'bg-[#F8FAFC] border border-[#E6EDF5] text-[#475569] hover:border-[#CBD5E1]'
+                  }`}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-[#E6EDF5] bg-white px-4 py-4">
+            <label className="block text-sm font-semibold text-[#0F172A] mb-2">分镜类型</label>
+            <div className="flex flex-wrap gap-2">
+              {STORYBOARD_OPTIONS.map(option => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => onFormChange({ storyboard_type: option })}
+                  className={`px-3 py-2 rounded-xl text-sm transition-all ${
+                    form.storyboard_type === option
+                      ? 'bg-[#EAF3FF] border border-[#1F8BFF] text-[#1F8BFF] font-medium'
+                      : 'bg-[#F8FAFC] border border-[#E6EDF5] text-[#475569] hover:border-[#CBD5E1]'
+                  }`}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
 
         <div className="rounded-3xl border border-[#E6EDF5] bg-white px-5 py-5 shadow-sm space-y-4">
           <PromptInput

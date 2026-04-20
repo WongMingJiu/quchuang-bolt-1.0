@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const ARK_BASE_URL = process.env.ARK_BASE_URL ?? 'https://ark.cn-beijing.volces.com/api/v3';
 const ARK_API_KEY = process.env.ARK_API_KEY;
+const ARK_SEEDANCE_MODEL = process.env.ARK_SEEDANCE_MODEL ?? 'doubao-seedance-2-0-260128';
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -28,7 +29,7 @@ export function assertArkConfig() {
 }
 
 export function mapModel(_model: string) {
-  return 'doubao-seedance-2-0-260128';
+  return ARK_SEEDANCE_MODEL;
 }
 
 export async function arkFetch(path: string, init?: RequestInit) {

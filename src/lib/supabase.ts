@@ -30,6 +30,10 @@ const demoGenerations: Generation[] = [
     provider: 'demo',
     provider_task_id: null,
     error_message: null,
+    usability_status: 'pending',
+    usability_reason_tags: [],
+    usability_note: null,
+    usability_marked_at: null,
     completed_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
     created_at: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
   },
@@ -53,6 +57,10 @@ const demoGenerations: Generation[] = [
     provider: 'demo',
     provider_task_id: null,
     error_message: null,
+    usability_status: 'pending',
+    usability_reason_tags: [],
+    usability_note: null,
+    usability_marked_at: null,
     completed_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
     created_at: new Date(Date.now() - 1000 * 60 * 60 * 26).toISOString(),
   },
@@ -119,6 +127,10 @@ function normalizeGeneration(row: Partial<Generation>): Generation {
     provider: row.provider ?? null,
     provider_task_id: row.provider_task_id ?? null,
     error_message: row.error_message ?? null,
+    usability_status: row.usability_status ?? 'pending',
+    usability_reason_tags: Array.isArray(row.usability_reason_tags) ? row.usability_reason_tags : [],
+    usability_note: row.usability_note ?? null,
+    usability_marked_at: row.usability_marked_at ?? null,
     completed_at: row.completed_at ?? null,
     created_at: row.created_at ?? new Date().toISOString(),
   };
@@ -215,4 +227,14 @@ export async function deleteGeneration(id: string): Promise<void> {
 
 export async function toggleFavorite(id: string, is_favorited: boolean): Promise<Generation | null> {
   return updateGeneration(id, { is_favorited });
+}
+
+export async function updateUsabilityAnnotation(
+  id: string,
+  payload: Pick<Generation, 'usability_status' | 'usability_reason_tags' | 'usability_note'>,
+): Promise<Generation | null> {
+  return updateGeneration(id, {
+    ...payload,
+    usability_marked_at: new Date().toISOString(),
+  });
 }

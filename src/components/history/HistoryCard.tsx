@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { CreditCard as Edit3, RefreshCw, Trash2, Star, Download, Zap, ArrowUpCircle, Clock, AlertCircle, Loader, Play } from 'lucide-react';
-import type { Generation } from '../../types';
+import type { Generation, UsabilityStatus } from '../../types';
 import VideoPreviewModal from '../media/VideoPreviewModal';
+import UsabilityAnnotationModal from '../annotation/UsabilityAnnotationModal';
 
 interface HistoryCardProps {
   generation: Generation;
@@ -29,15 +30,43 @@ const MODE_LABELS: Record<string, string> = {
   'omni-reference': '全能参考',
 };
 
+const ANNOTATION_LABELS: Record<UsabilityStatus, string> = {
+  pending: '待标注',
+  usable: '可用',
+  optimizable: '可优化',
+  unusable: '不可用',
+};
+
+const ANNOTATION_BADGE_STYLES: Record<UsabilityStatus, string> = {
+  pending: 'bg-[#F1F5F9] text-[#64748B]',
+  usable: 'bg-[#DCFCE7] text-[#166534]',
+  optimizable: 'bg-[#FEF3C7] text-[#B45309]',
+  unusable: 'bg-[#FEE2E2] text-[#B91C1C]',
+};
+
 export default function HistoryCard({ generation: g, onRefill, onRegenerate, onDelete, onToggleFavorite }: HistoryCardProps) {
   const [hovered, setHovered] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [annotationOpen, setAnnotationOpen] = useState(false);
+  const [downloadIntent, setDownloadIntent] = useState(false);
+  const [localStatus, setLocalStatus] = useState<UsabilityStatus>(g.usability_status ?? 'pending');
 
   const isGenerating = g.status === 'generating';
   const isFailed = g.status === 'failed';
   const isCompleted = g.status === 'completed';
   const previewImage = g.thumbnail_url ?? g.last_frame_url;
+  const usabilityStatus = localStatus;
+
+  const triggerDownload = () => {
+    if (!g.video_url) return;
+    const link = document.createElement('a');
+    link.href = g.video_url;
+    link.download = '';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <>
@@ -71,16 +100,9 @@ export default function HistoryCard({ generation: g, onRefill, onRegenerate, onD
             </div>
           )}
 
-          {isGenerating && (
-            <div className="absolute inset-0 bg-[rgba(15,23,42,0.4)] flex items-center justify-center">
-              <div className="flex flex-col items-center gap-3">
-                <div className="w-10 h-10 rounded-full border-2 border-[#1F8BFF] border-t-transparent animate-spin" />
-                <div className="w-32 h-1 bg-[rgba(255,255,255,0.2)] rounded-full overflow-hidden">
-                  <div className="h-full bg-[#1F8BFF] rounded-full animate-pulse-soft" style={{ width: '60%' }} />
-                </div>
-              </div>
-            </div>
-          )}
+          <div className={`absolute top-2 left-2 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${ANNOTATION_BADGE_STYLES[usabilityStatus]}`}>
+            {ANNOTATION_LABELS[usabilityStatus]}
+          </div>
 
           {isCompleted && g.video_url && hovered && (
             <button
@@ -116,24 +138,6 @@ export default function HistoryCard({ generation: g, onRefill, onRegenerate, onD
               <Star size={14} className="text-[#F59E0B] fill-[#F59E0B] drop-shadow-sm" />
             </div>
           )}
-
-          {isGenerating && (
-            <div className="absolute top-2 left-2">
-              <span className="flex items-center gap-1 text-xs text-white bg-[#1F8BFF] px-2 py-0.5 rounded-full animate-pulse-soft">
-                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                生成中
-              </span>
-            </div>
-          )}
-
-          {isFailed && (
-            <div className="absolute top-2 left-2">
-              <span className="flex items-center gap-1 text-xs text-white bg-[#EF4444] px-2 py-0.5 rounded-full">
-                <AlertCircle size={10} />
-                失败
-              </span>
-            </div>
-          )}
         </div>
 
         <div className="p-3">
@@ -153,6 +157,25 @@ export default function HistoryCard({ generation: g, onRefill, onRegenerate, onD
             </span>
           </div>
 
+          <div className="flex items-center justify-between mb-3 px-3 py-2 rounded-xl bg-[#F8FAFC] border border-[#E6EDF5] text-xs">
+            <div className="flex items-center gap-2 text-[#475569]">
+              <span className="text-[#94A3B8]">可用性标注：</span>
+              <span className={`inline-flex items-center rounded-full px-2 py-0.5 font-medium ${ANNOTATION_BADGE_STYLES[usabilityStatus]}`}>
+                {ANNOTATION_LABELS[usabilityStatus]}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setDownloadIntent(false);
+                setAnnotationOpen(true);
+              }}
+              className="text-[#1F8BFF] hover:text-[#1677FF] font-medium transition-colors"
+            >
+              {usabilityStatus === 'pending' ? '去标注' : '修改'}
+            </button>
+          </div>
+
           <div className="flex items-center justify-between pt-2 border-t border-[#E6EDF5]">
             <div className="flex items-center gap-0.5">
               <button onClick={() => onRefill(g)} title="重新编辑" className="flex items-center gap-1 px-2 py-1.5 rounded text-xs text-[#475569] hover:bg-[#EAF3FF] hover:text-[#1F8BFF] transition-all duration-150 font-medium"><Edit3 size={13} /><span className="hidden sm:inline">编辑</span></button>
@@ -161,7 +184,23 @@ export default function HistoryCard({ generation: g, onRefill, onRegenerate, onD
 
             <div className="flex items-center gap-0.5">
               <button onClick={() => onToggleFavorite(g.id, g.is_favorited)} title={g.is_favorited ? '取消收藏' : '收藏'} className={`p-1.5 rounded transition-all duration-150 ${g.is_favorited ? 'text-[#F59E0B] hover:text-[#D97706]' : 'text-[#94A3B8] hover:text-[#F59E0B] hover:bg-[#FEF3C7]'}`}><Star size={14} className={g.is_favorited ? 'fill-current' : ''} /></button>
-              {g.status === 'completed' && g.video_url && <a href={g.video_url} download title="下载" className="p-1.5 rounded text-[#94A3B8] hover:text-[#1F8BFF] hover:bg-[#EAF3FF] transition-all duration-150"><Download size={14} /></a>}
+              {g.status === 'completed' && g.video_url && (
+                usabilityStatus === 'pending' ? (
+                  <button
+                    type="button"
+                    title="下载前需先标注"
+                    onClick={() => {
+                      setDownloadIntent(true);
+                      setAnnotationOpen(true);
+                    }}
+                    className="p-1.5 rounded text-[#F59E0B] hover:text-[#D97706] hover:bg-[#FEF3C7] transition-all duration-150"
+                  >
+                    <Download size={14} />
+                  </button>
+                ) : (
+                  <a href={g.video_url} download title="下载" className="p-1.5 rounded text-[#94A3B8] hover:text-[#1F8BFF] hover:bg-[#EAF3FF] transition-all duration-150"><Download size={14} /></a>
+                )
+              )}
               <div className="relative">
                 <button title="删除" onClick={() => setShowDelete(true)} className="p-1.5 rounded text-[#94A3B8] hover:text-[#EF4444] hover:bg-[#FEF2F2] transition-all duration-150"><Trash2 size={14} /></button>
                 {showDelete && <div className="absolute bottom-8 right-0 bg-white rounded-lg shadow-elevated border border-[#E6EDF5] p-3 z-20 w-48 animate-fade-in"><p className="text-xs text-[#0F172A] font-medium mb-2">确认删除这条记录？</p><div className="flex gap-2"><button onClick={() => { onDelete(g.id); setShowDelete(false); }} className="flex-1 px-2 py-1.5 bg-[#EF4444] text-white text-xs rounded font-medium hover:bg-red-600 transition-colors">删除</button><button onClick={() => setShowDelete(false)} className="flex-1 px-2 py-1.5 bg-[#EEF4FA] text-[#475569] text-xs rounded font-medium hover:bg-[#D8E2F0] transition-colors">取消</button></div></div>}
@@ -172,6 +211,23 @@ export default function HistoryCard({ generation: g, onRefill, onRegenerate, onD
       </div>
 
       <VideoPreviewModal open={previewOpen} generation={g} onClose={() => setPreviewOpen(false)} />
+      <UsabilityAnnotationModal
+        open={annotationOpen}
+        generation={{ ...g, usability_status: usabilityStatus }}
+        downloadIntent={downloadIntent}
+        onClose={() => {
+          setAnnotationOpen(false);
+          setDownloadIntent(false);
+        }}
+        onSave={({ usability_status, continueDownload }) => {
+          setLocalStatus(usability_status);
+          setAnnotationOpen(false);
+          if (continueDownload) {
+            triggerDownload();
+          }
+          setDownloadIntent(false);
+        }}
+      />
     </>
   );
 }

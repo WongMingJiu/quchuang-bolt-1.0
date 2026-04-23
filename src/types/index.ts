@@ -5,6 +5,7 @@ export type GenerationStatus = 'pending' | 'generating' | 'completed' | 'failed'
 export type MediaType = 'image' | 'video' | 'audio';
 export type CategoryType = '太极' | '唱歌' | '瑜伽' | '普拉提' | '手机摄影';
 export type StoryboardType = '口播类' | '情景类' | 'IP代练';
+export type UsabilityStatus = 'pending' | 'usable' | 'optimizable' | 'unusable';
 
 export interface GenerationAsset {
   name: string;
@@ -36,6 +37,10 @@ export interface Generation {
   provider: string | null;
   provider_task_id: string | null;
   error_message: string | null;
+  usability_status: UsabilityStatus;
+  usability_reason_tags: string[];
+  usability_note: string | null;
+  usability_marked_at: string | null;
   completed_at: string | null;
   created_at: string;
 }

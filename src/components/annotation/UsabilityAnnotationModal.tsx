@@ -52,12 +52,14 @@ export default function UsabilityAnnotationModal({ open, generation, downloadInt
   const [status, setStatus] = useState<UsabilityStatus>('usable');
   const [reasonTags, setReasonTags] = useState<string[]>([]);
   const [note, setNote] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open || !generation) return;
     setStatus(generation.usability_status ?? 'pending');
     setReasonTags(generation.usability_reason_tags ?? []);
     setNote(generation.usability_note ?? '');
+    setError(null);
   }, [open, generation]);
 
   const visibleTags = useMemo(() => {
@@ -120,13 +122,16 @@ export default function UsabilityAnnotationModal({ open, generation, downloadInt
             <div>
               <p className="text-sm font-semibold text-[#0F172A] mb-3">原因标签</p>
               <div className="flex flex-wrap gap-2">
-                {visibleTags.map(tag => {
+                {visibleTags.map((tag: string) => {
                   const active = reasonTags.includes(tag);
                   return (
                     <button
                       key={tag}
                       type="button"
-                      onClick={() => setReasonTags(prev => active ? prev.filter(item => item !== tag) : [...prev, tag])}
+                      onClick={() => {
+                        setError(null);
+                        setReasonTags(prev => active ? prev.filter(item => item !== tag) : [...prev, tag]);
+                      }}
                       className={`px-3 py-2 rounded-xl text-sm transition-all ${active ? 'bg-[#EAF3FF] border border-[#1F8BFF] text-[#1F8BFF]' : 'bg-white border border-[#E6EDF5] text-[#475569] hover:border-[#CBD5E1]'}`}
                     >
                       {tag}
@@ -134,6 +139,12 @@ export default function UsabilityAnnotationModal({ open, generation, downloadInt
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="px-3 py-2 rounded-xl bg-[#FEF2F2] border border-[#FECACA] text-sm text-[#B91C1C]">
+              {error}
             </div>
           )}
 
@@ -158,12 +169,18 @@ export default function UsabilityAnnotationModal({ open, generation, downloadInt
           </button>
           <button
             type="button"
-            onClick={() => onSave?.({
-              usability_status: status,
-              usability_reason_tags: reasonTags,
-              usability_note: note,
-              continueDownload: downloadIntent,
-            })}
+            onClick={() => {
+              if ((status === 'optimizable' || status === 'unusable') && reasonTags.length === 0) {
+                setError('请选择至少一个原因标签');
+                return;
+              }
+              onSave?.({
+                usability_status: status,
+                usability_reason_tags: reasonTags,
+                usability_note: note,
+                continueDownload: downloadIntent,
+              });
+            }}
             className="px-4 py-2 rounded-xl bg-[#1F8BFF] text-white text-sm font-medium hover:bg-[#1677FF] transition-all"
           >
             {downloadIntent ? '保存并下载' : '保存标注'}

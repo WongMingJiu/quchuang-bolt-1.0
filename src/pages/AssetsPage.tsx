@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Star, Download, Grid3x3 as Grid3X3, Play, Image as ImageIcon } from 'lucide-react';
-import type { Generation, UsabilityStatus } from '../types';
+import type { Generation, AssetType, UsabilityStatus } from '../types';
 import VideoPreviewModal from '../components/media/VideoPreviewModal';
 import UsabilityAnnotationModal from '../components/annotation/UsabilityAnnotationModal';
+import { updateUsabilityAnnotation } from '../lib/supabase';
 
 interface AssetsPageProps {
   generations: Generation[];
@@ -33,6 +34,14 @@ const ANNOTATION_BADGE_STYLES: Record<UsabilityStatus, string> = {
   optimizable: 'bg-[#FEF3C7] text-[#B45309]',
   unusable: 'bg-[#FEE2E2] text-[#B91C1C]',
 };
+
+const ANNOTATION_FILTERS: Array<{ key: 'all' | UsabilityStatus; label: string }> = [
+  { key: 'all', label: '全部' },
+  { key: 'pending', label: '待标注' },
+  { key: 'usable', label: '可用' },
+  { key: 'optimizable', label: '可优化' },
+  { key: 'unusable', label: '不可用' },
+];
 
 interface AssetCardProps {
   generation: Generation;
@@ -141,6 +150,10 @@ function AssetCard({ generation: g, onToggleFavorite, onPreview, onOpenAnnotatio
 }
 
 export default function AssetsPage({ generations, onToggleFavorite }: AssetsPageProps) {
+  const [assetType, setAssetType] = useState<AssetType>('video');
+  const [favOnly, setFavOnly] = useState(false);
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+  const [annotationFilter, setAnnotationFilter] = useState<'all' | UsabilityStatus>('all');
   const [previewTarget, setPreviewTarget] = useState<Generation | null>(null);
   const [annotationTarget, setAnnotationTarget] = useState<Generation | null>(null);
   const [downloadIntent, setDownloadIntent] = useState(false);
@@ -149,11 +162,20 @@ export default function AssetsPage({ generations, onToggleFavorite }: AssetsPage
   const completed = useMemo(() => generations.filter((g: Generation) => g.status === 'completed'), [generations]);
 
   const filtered = useMemo(() => {
-    return completed.map(item => ({
+    let items = completed;
+    if (assetType === 'image') {
+      items = items.filter(g => Boolean(g.thumbnail_url ?? g.last_frame_url));
+    }
+    if (favOnly) items = items.filter(g => g.is_favorited);
+    if (annotationFilter !== 'all') {
+      items = items.filter(g => (localAnnotations[g.id] ?? g.usability_status ?? 'pending') === annotationFilter);
+    }
+    if (sortOrder === 'oldest') items = [...items].reverse();
+    return items.map(item => ({
       ...item,
       usability_status: localAnnotations[item.id] ?? item.usability_status,
     }));
-  }, [completed, localAnnotations]);
+  }, [completed, assetType, favOnly, annotationFilter, sortOrder, localAnnotations]);
 
   const grouped = useMemo(() => groupByDate(filtered as Generation[]), [filtered]);
 
@@ -175,6 +197,43 @@ export default function AssetsPage({ generations, onToggleFavorite }: AssetsPage
             <div className="flex items-center gap-3">
               <h1 className="text-base font-bold text-[#0F172A]">资产</h1>
               <span className="text-xs text-[#94A3B8] bg-[#EEF4FA] px-2 py-0.5 rounded-full font-mono">{filtered.length}</span>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex bg-[#F5F7FB] p-0.5 rounded-lg border border-[#E6EDF5]">
+                {(['video', 'image'] as AssetType[]).map(t => (
+                  <button key={t} onClick={() => setAssetType(t)} className={`px-4 py-1.5 rounded text-sm font-medium transition-all duration-200 flex items-center gap-1.5 ${assetType === t ? 'bg-white text-[#0F172A] shadow-sm' : 'text-[#7B8CA8] hover:text-[#475569]'}`}>
+                    {t === 'video' ? <Play size={13} className={assetType === t ? 'text-[#1F8BFF]' : ''} /> : <ImageIcon size={13} />}
+                    {t === 'video' ? '视频' : '图片'}
+                  </button>
+                ))}
+              </div>
+
+              <button onClick={() => setFavOnly(v => !v)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-all duration-200 ${favOnly ? 'bg-[#FEF3C7] text-[#D97706] border-[#FDE68A]' : 'bg-white text-[#475569] border-[#E6EDF5] hover:border-[#D8E2F0]'}`}>
+                <Star size={14} className={favOnly ? 'fill-current text-[#F59E0B]' : ''} />
+                收藏
+              </button>
+
+              <div className="flex bg-[#F5F7FB] p-0.5 rounded-lg border border-[#E6EDF5]">
+                {ANNOTATION_FILTERS.map(filter => (
+                  <button key={filter.key} onClick={() => setAnnotationFilter(filter.key)} className={`px-3 py-1.5 rounded text-sm font-medium transition-all duration-200 ${annotationFilter === filter.key ? 'bg-white text-[#0F172A] shadow-sm' : 'text-[#7B8CA8] hover:text-[#475569]'}`}>
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="relative group">
+                <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border border-[#E6EDF5] bg-white text-[#475569] hover:border-[#D8E2F0] transition-all duration-200">
+                  {sortOrder === 'newest' ? '最新优先' : '最早优先'}
+                </button>
+                <div className="absolute right-0 top-full mt-1.5 hidden group-hover:block bg-white rounded-lg shadow-elevated border border-[#E6EDF5] overflow-hidden z-20 w-32 animate-fade-in">
+                  {(['newest', 'oldest'] as const).map(o => (
+                    <button key={o} onClick={() => setSortOrder(o)} className={`w-full text-left px-3 py-2 text-sm transition-colors ${sortOrder === o ? 'bg-[#EAF3FF] text-[#1F8BFF]' : 'text-[#475569] hover:bg-[#F5F9FF]'}`}>
+                      {o === 'newest' ? '最新优先' : '最早优先'}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -220,14 +279,20 @@ export default function AssetsPage({ generations, onToggleFavorite }: AssetsPage
           setAnnotationTarget(null);
           setDownloadIntent(false);
         }}
-        onSave={({ usability_status, continueDownload }) => {
-          if (annotationTarget) {
-            setLocalAnnotations(prev => ({ ...prev, [annotationTarget.id]: usability_status }));
-          }
+        onSave={async ({ usability_status, usability_reason_tags, usability_note, continueDownload }) => {
           const current = annotationTarget;
+          if (!current) return;
+          const updated = await updateUsabilityAnnotation(current.id, {
+            usability_status,
+            usability_reason_tags,
+            usability_note,
+          });
+          if (updated) {
+            setLocalAnnotations(prev => ({ ...prev, [updated.id]: updated.usability_status }));
+          }
           setAnnotationTarget(null);
           if (continueDownload) {
-            triggerDownload(current);
+            triggerDownload(updated ?? current);
           }
           setDownloadIntent(false);
         }}

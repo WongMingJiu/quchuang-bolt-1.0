@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CreditCard as Edit3, RefreshCw, Trash2, Star, Download, Zap, ArrowUpCircle, Clock, AlertCircle, Loader, Play } from 'lucide-react';
 import type { Generation, UsabilityStatus } from '../../types';
+import { updateUsabilityAnnotation } from '../../lib/supabase';
 import VideoPreviewModal from '../media/VideoPreviewModal';
 import UsabilityAnnotationModal from '../annotation/UsabilityAnnotationModal';
 
@@ -219,10 +220,22 @@ export default function HistoryCard({ generation: g, onRefill, onRegenerate, onD
           setAnnotationOpen(false);
           setDownloadIntent(false);
         }}
-        onSave={({ usability_status, continueDownload }) => {
-          setLocalStatus(usability_status);
+        onSave={async ({ usability_status, usability_reason_tags, usability_note, continueDownload }: {
+          usability_status: UsabilityStatus;
+          usability_reason_tags: string[];
+          usability_note: string;
+          continueDownload: boolean;
+        }) => {
+          const updated = await updateUsabilityAnnotation(g.id, {
+            usability_status,
+            usability_reason_tags,
+            usability_note,
+          });
+          if (updated) {
+            setLocalStatus(updated.usability_status);
+          }
           setAnnotationOpen(false);
-          if (continueDownload) {
+          if (continueDownload && updated?.video_url) {
             triggerDownload();
           }
           setDownloadIntent(false);

@@ -66,5 +66,5 @@ export interface ModelQuota {
   total: number;
 }
 
-export type ActivePage = 'creation' | 'assets';
+export type ActivePage = 'creation' | 'assets' | 'admin';
 export type AssetType = 'video' | 'image';

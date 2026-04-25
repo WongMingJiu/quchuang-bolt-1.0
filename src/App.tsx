@@ -4,6 +4,7 @@ import LeftNav from './components/layout/LeftNav';
 import UserInfo from './components/layout/UserInfo';
 import CreationPage from './pages/CreationPage';
 import AssetsPage from './pages/AssetsPage';
+import AdminCenterPage from './pages/AdminCenterPage';
 import { fetchGenerations, isUsingDemoMode, toggleFavorite } from './lib/supabase';
 
 export default function App() {
@@ -83,6 +84,7 @@ export default function App() {
               onToggleFavorite={handleToggleFavoriteAssets}
             />
           )}
+          {activePage === 'admin' && <AdminCenterPage />}
         </main>
       </div>
     </div>

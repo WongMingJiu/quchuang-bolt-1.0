@@ -1,4 +1,4 @@
-import { Film, FolderOpen, Zap } from 'lucide-react';
+import { Film, FolderOpen, Zap, Shield } from 'lucide-react';
 import type { ActivePage } from '../../types';
 
 interface LeftNavProps {
@@ -9,6 +9,7 @@ interface LeftNavProps {
 const navItems: { key: ActivePage; label: string; icon: React.ReactNode }[] = [
   { key: 'creation', label: '创作', icon: <Zap size={20} /> },
   { key: 'assets', label: '资产', icon: <FolderOpen size={20} /> },
+  { key: 'admin', label: '管理中心', icon: <Shield size={20} /> },
 ];
 
 export default function LeftNav({ activePage, onNavigate }: LeftNavProps) {

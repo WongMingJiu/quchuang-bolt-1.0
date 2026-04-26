@@ -76,6 +76,12 @@ const CATEGORY_LABELS: Record<AssetPrimaryTab, string> = {
   ip_teacher: 'IP老师',
 };
 
+const CATEGORY_BADGE_STYLES: Record<AssetPrimaryTab, string> = {
+  creative: 'bg-[#DBEAFE] text-[#1D4ED8]',
+  reference: 'bg-[#ECFDF5] text-[#047857]',
+  ip_teacher: 'bg-[#F3E8FF] text-[#7C3AED]',
+};
+
 const IP_TEACHER_LABELS: Record<IpTeacherTab, string> = {
   all: '全部',
   persona: '形象',
@@ -125,16 +131,25 @@ function AssetCard({ generation: g, category, onToggleFavorite, onPreview, onOpe
         {previewImage ? (
           <img src={previewImage} alt={g.prompt} className="w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]" />
         ) : g.asset_media_type === 'video' ? (
-          <div className="w-full aspect-video flex items-center justify-center bg-[#E6EDF5]">
-            <Video size={24} className="text-[#D8E2F0]" />
+          <div className="w-full aspect-video flex flex-col items-center justify-center bg-gradient-to-br from-[#EAF3FF] to-[#DCEBFF] gap-2">
+            <div className="w-12 h-12 rounded-2xl bg-white/90 shadow-sm flex items-center justify-center">
+              <Video size={22} className="text-[#1F8BFF]" />
+            </div>
+            <p className="text-xs font-medium text-[#4F6B95]">视频资产预览</p>
           </div>
         ) : g.asset_media_type === 'audio' ? (
-          <div className="w-full aspect-video flex items-center justify-center bg-[#E6EDF5]">
-            <Music4 size={24} className="text-[#D8E2F0]" />
+          <div className="w-full aspect-video flex flex-col items-center justify-center bg-gradient-to-br from-[#FFF7ED] to-[#FCE7F3] gap-2">
+            <div className="w-12 h-12 rounded-2xl bg-white/90 shadow-sm flex items-center justify-center">
+              <Music4 size={22} className="text-[#DB2777]" />
+            </div>
+            <p className="text-xs font-medium text-[#9D174D]">音频资产</p>
           </div>
         ) : (
-          <div className="w-full aspect-video flex items-center justify-center bg-[#E6EDF5]">
-            <ImageIcon size={24} className="text-[#D8E2F0]" />
+          <div className="w-full aspect-video flex flex-col items-center justify-center bg-gradient-to-br from-[#F8FAFC] to-[#EEF2F7] gap-2">
+            <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center">
+              <ImageIcon size={22} className="text-[#64748B]" />
+            </div>
+            <p className="text-xs font-medium text-[#64748B]">图片资产预览</p>
           </div>
         )}
 
@@ -197,6 +212,9 @@ function AssetCard({ generation: g, category, onToggleFavorite, onPreview, onOpe
       <div className="p-3">
         <p className="text-sm text-[#0F172A] leading-snug line-clamp-2 mb-2">{g.prompt || '未命名资产'}</p>
         <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${CATEGORY_BADGE_STYLES[category]}`}>
+            {CATEGORY_LABELS[category]}
+          </span>
           <span className="tag text-[10px]">{g.category}</span>
           <span className="tag text-[10px]">{g.storyboard_type}</span>
           <span className="tag text-[10px]">{MEDIA_LABELS[g.asset_media_type ?? 'video']}</span>
@@ -293,76 +311,87 @@ export default function AssetsPage({ generations, onToggleFavorite }: AssetsPage
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            {CATEGORY_TABS.map(tab => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => {
-                  setActiveCategory(tab.key);
-                  setActiveIpTab('all');
-                  setActiveMediaFilter('all');
-                  setAnnotationFilter('all');
-                }}
-                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${activeCategory === tab.key ? 'bg-[#0F172A] text-white' : 'bg-white border border-[#E6EDF5] text-[#475569] hover:border-[#CBD5E1]'}`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {activeCategory === 'ip_teacher' && (
-            <div className="flex items-center gap-2 flex-wrap">
-              {IP_TEACHER_TABS.map(tab => (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => {
-                    setActiveIpTab(tab.key);
-                    setActiveMediaFilter('all');
-                  }}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${activeIpTab === tab.key ? 'bg-[#EAF3FF] text-[#1F8BFF] border border-[#B6E7FF]' : 'bg-white border border-[#E6EDF5] text-[#475569] hover:border-[#CBD5E1]'}`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          )}
-
-          <div className="flex items-center gap-2 flex-wrap">
-            <button onClick={() => setFavOnly(v => !v)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-all duration-200 ${favOnly ? 'bg-[#FEF3C7] text-[#D97706] border-[#FDE68A]' : 'bg-white text-[#475569] border border-[#E6EDF5] hover:border-[#D8E2F0]'}`}>
-              <Star size={14} className={favOnly ? 'fill-current text-[#F59E0B]' : ''} />
-              收藏
-            </button>
-
-            <div className="flex bg-[#F5F7FB] p-0.5 rounded-lg border border-[#E6EDF5]">
-              {MEDIA_FILTERS.map(filter => (
-                <button key={filter.key} onClick={() => setActiveMediaFilter(filter.key)} className={`px-3 py-1.5 rounded text-sm font-medium transition-all duration-200 ${activeMediaFilter === filter.key ? 'bg-white text-[#0F172A] shadow-sm' : 'text-[#7B8CA8] hover:text-[#475569]'}`}>
-                  {filter.label}
-                </button>
-              ))}
-            </div>
-
-            {activeCategory === 'creative' && (
-              <div className="flex bg-[#F5F7FB] p-0.5 rounded-lg border border-[#E6EDF5]">
-                {ANNOTATION_FILTERS.map(filter => (
-                  <button key={filter.key} onClick={() => setAnnotationFilter(filter.key)} className={`px-3 py-1.5 rounded text-sm font-medium transition-all duration-200 ${annotationFilter === filter.key ? 'bg-white text-[#0F172A] shadow-sm' : 'text-[#7B8CA8] hover:text-[#475569]'}`}>
-                    {filter.label}
+          <div className="space-y-3 rounded-2xl border border-[#E6EDF5] bg-[#FAFBFC] px-4 py-4">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[#94A3B8] mb-2">资产分类</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                {CATEGORY_TABS.map(tab => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => {
+                      setActiveCategory(tab.key);
+                      setActiveIpTab('all');
+                      setActiveMediaFilter('all');
+                      setAnnotationFilter('all');
+                    }}
+                    className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${activeCategory === tab.key ? 'bg-[#0F172A] text-white' : 'bg-white border border-[#E6EDF5] text-[#475569] hover:border-[#CBD5E1]'}`}
+                  >
+                    {tab.label}
                   </button>
                 ))}
               </div>
+            </div>
+
+            {activeCategory === 'ip_teacher' && (
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-[#94A3B8] mb-2">IP老师子类</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {IP_TEACHER_TABS.map(tab => (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => {
+                        setActiveIpTab(tab.key);
+                        setActiveMediaFilter('all');
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${activeIpTab === tab.key ? 'bg-[#EAF3FF] text-[#1F8BFF] border border-[#B6E7FF]' : 'bg-white border border-[#E6EDF5] text-[#475569] hover:border-[#CBD5E1]'}`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
 
-            <div className="relative group">
-              <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border border-[#E6EDF5] bg-white text-[#475569] hover:border-[#D8E2F0] transition-all duration-200">
-                {sortOrder === 'newest' ? '最新优先' : '最早优先'}
-              </button>
-              <div className="absolute right-0 top-full mt-1.5 hidden group-hover:block bg-white rounded-lg shadow-elevated border border-[#E6EDF5] overflow-hidden z-20 w-32 animate-fade-in">
-                {SORT_OPTIONS.map(o => (
-                  <button key={o.key} onClick={() => setSortOrder(o.key)} className={`w-full text-left px-3 py-2 text-sm transition-colors ${sortOrder === o.key ? 'bg-[#EAF3FF] text-[#1F8BFF]' : 'text-[#475569] hover:bg-[#F5F9FF]'}`}>
-                    {o.label}
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[#94A3B8] mb-2">筛选与排序</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button onClick={() => setFavOnly(v => !v)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-all duration-200 ${favOnly ? 'bg-[#FEF3C7] text-[#D97706] border-[#FDE68A]' : 'bg-white text-[#475569] border border-[#E6EDF5] hover:border-[#D8E2F0]'}`}>
+                  <Star size={14} className={favOnly ? 'fill-current text-[#F59E0B]' : ''} />
+                  收藏
+                </button>
+
+                <div className="flex bg-white p-0.5 rounded-lg border border-[#E6EDF5]">
+                  {MEDIA_FILTERS.map(filter => (
+                    <button key={filter.key} onClick={() => setActiveMediaFilter(filter.key)} className={`px-3 py-1.5 rounded text-sm font-medium transition-all duration-200 ${activeMediaFilter === filter.key ? 'bg-[#F5F7FB] text-[#0F172A] shadow-sm' : 'text-[#7B8CA8] hover:text-[#475569]'}`}>
+                      {filter.label}
+                    </button>
+                  ))}
+                </div>
+
+                {activeCategory === 'creative' && (
+                  <div className="flex bg-white p-0.5 rounded-lg border border-[#E6EDF5]">
+                    {ANNOTATION_FILTERS.map(filter => (
+                      <button key={filter.key} onClick={() => setAnnotationFilter(filter.key)} className={`px-3 py-1.5 rounded text-sm font-medium transition-all duration-200 ${annotationFilter === filter.key ? 'bg-[#F5F7FB] text-[#0F172A] shadow-sm' : 'text-[#7B8CA8] hover:text-[#475569]'}`}>
+                        {filter.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <div className="relative group">
+                  <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border border-[#E6EDF5] bg-white text-[#475569] hover:border-[#D8E2F0] transition-all duration-200">
+                    {sortOrder === 'newest' ? '最新优先' : '最早优先'}
                   </button>
-                ))}
+                  <div className="absolute right-0 top-full mt-1.5 hidden group-hover:block bg-white rounded-lg shadow-elevated border border-[#E6EDF5] overflow-hidden z-20 w-32 animate-fade-in">
+                    {SORT_OPTIONS.map(o => (
+                      <button key={o.key} onClick={() => setSortOrder(o.key)} className={`w-full text-left px-3 py-2 text-sm transition-colors ${sortOrder === o.key ? 'bg-[#EAF3FF] text-[#1F8BFF]' : 'text-[#475569] hover:bg-[#F5F9FF]'}`}>
+                        {o.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>

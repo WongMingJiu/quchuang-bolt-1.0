@@ -7,12 +7,7 @@
 - 当前新主线为**资产体系重构**：把资产统一整理为创作资产、参考资产、IP老师资产三类，并重构资产页为三大 tab。
 
 ## 当前
-- [ ] 资产类型枚举与字段设计（asset_category / asset_media_type / ip_asset_type）
-- [ ] 资产体系数据库 migration
-- [ ] 资产页拆分为：创作资产 / 参考素材 / IP老师 三大 tab
-- [ ] IP老师 tab 增加形象 / 场景二级筛选
-- [ ] 标注逻辑只保留在创作资产
-- [ ] 非创作资产取消标注状态与下载拦截
+- [ ] 资产页筛选反馈进一步增强（让媒介类型切换的变化更直观）
 - [ ] 管理中心统一 loading / empty / error 状态
 
 ## 已完成
@@ -32,6 +27,13 @@
 - [x] 管理中心相关数据库 migration 创建
 - [x] 管理中心相关后端 API 骨架创建
 - [x] 文档沉淀（README、delivery、db、env、api、annotation、admin notes）
+- [x] 资产体系类型扩展（asset_category / asset_media_type / ip_asset_type）
+- [x] 资产体系数据库 migration 创建
+- [x] 资产页重构为创作资产 / 参考素材 / IP老师三大 tab
+- [x] IP老师二级筛选（全部 / 形象 / 场景）
+- [x] 标注逻辑仅保留在创作资产
+- [x] 参考素材与 IP老师测试数据补齐
+- [x] 资产体系版本说明文档（asset-system-notes.md）
 
 ## 验收关注点
 - [ ] 创作主链路正常

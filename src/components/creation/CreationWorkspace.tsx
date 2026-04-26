@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Info, X } from 'lucide-react';
 import type { CreationFormState, Generation } from '../../types';
+import PromptExpansionPanel from './PromptExpansionPanel';
 import PromptInput from './PromptInput';
 import UploadArea from './UploadArea';
 
@@ -77,6 +78,7 @@ export default function CreationWorkspace({
         )}
 
         <div className="rounded-3xl border border-[#E6EDF5] bg-white px-5 py-5 shadow-sm space-y-4">
+          <PromptExpansionPanel onUsePrompt={(prompt) => onFormChange({ prompt })} />
           <PromptInput
             form={form}
             generating={generating}

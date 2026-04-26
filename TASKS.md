@@ -7,6 +7,10 @@
 - 当前新主线为**资产体系重构**：把资产统一整理为创作资产、参考资产、IP老师资产三类，并重构资产页为三大 tab。
 
 ## 当前
+- [ ] 提示词扩写前端骨架（PromptExpansionPanel + mock 结果）
+- [ ] 提示词扩写后端中转站调用（`/api/prompt-expand`）
+- [ ] 扩写结果覆盖正式提示词框
+- [ ] 扩写流程的 loading / error / success 状态完善
 - [ ] 管理中心统一 loading / empty / error 状态
 
 ## 已完成

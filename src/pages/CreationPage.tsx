@@ -215,6 +215,8 @@ export default function CreationPage({ generations, loadingHistory, onGeneration
     }
   };
 
+  const creativeGenerations = generations.filter(g => (g.asset_category ?? 'creative') === 'creative');
+
   return (
     <div className="flex h-full overflow-hidden">
       <div className="flex-1 overflow-hidden flex flex-col min-w-0">
@@ -230,7 +232,7 @@ export default function CreationPage({ generations, loadingHistory, onGeneration
       </div>
 
       <HistoryPanel
-        generations={generations}
+        generations={creativeGenerations}
         loading={loadingHistory}
         onRefill={handleRefill}
         onRegenerate={handleRegenerate}

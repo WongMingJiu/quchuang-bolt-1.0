@@ -1,14 +1,19 @@
 import { useMemo, useState } from 'react';
-import { Star, Download, Grid3x3 as Grid3X3, Play, Image as ImageIcon } from 'lucide-react';
-import type { Generation, AssetType, UsabilityStatus } from '../types';
+import { Star, Download, Grid3x3 as Grid3X3, Play, Image as ImageIcon, Video, Music4 } from 'lucide-react';
+import type { Generation, UsabilityStatus } from '../types';
 import VideoPreviewModal from '../components/media/VideoPreviewModal';
 import UsabilityAnnotationModal from '../components/annotation/UsabilityAnnotationModal';
+import AssetDetailDrawer from '../components/assets/AssetDetailDrawer';
 import { updateUsabilityAnnotation } from '../lib/supabase';
 
 interface AssetsPageProps {
   generations: Generation[];
   onToggleFavorite: (id: string, current: boolean) => void;
 }
+
+type AssetPrimaryTab = 'creative' | 'reference' | 'ip_teacher';
+type AssetMediaFilter = 'all' | 'image' | 'video' | 'audio';
+type IpTeacherTab = 'all' | 'persona' | 'scene';
 
 function groupByDate(items: Generation[]): Map<string, Generation[]> {
   const map = new Map<string, Generation[]>();
@@ -35,6 +40,56 @@ const ANNOTATION_BADGE_STYLES: Record<UsabilityStatus, string> = {
   unusable: 'bg-[#FEE2E2] text-[#B91C1C]',
 };
 
+const CATEGORY_TABS: Array<{ key: AssetPrimaryTab; label: string }> = [
+  { key: 'creative', label: '创作资产' },
+  { key: 'reference', label: '参考素材' },
+  { key: 'ip_teacher', label: 'IP老师' },
+];
+
+const IP_TEACHER_TABS: Array<{ key: IpTeacherTab; label: string }> = [
+  { key: 'all', label: '全部' },
+  { key: 'persona', label: '形象' },
+  { key: 'scene', label: '场景' },
+];
+
+const MEDIA_FILTERS: Array<{ key: AssetMediaFilter; label: string }> = [
+  { key: 'all', label: '全部' },
+  { key: 'image', label: '图片' },
+  { key: 'video', label: '视频' },
+  { key: 'audio', label: '音频' },
+];
+
+const SORT_OPTIONS = [
+  { key: 'newest', label: '最新优先' },
+  { key: 'oldest', label: '最早优先' },
+] as const;
+
+const MEDIA_LABELS: Record<'image' | 'video' | 'audio', string> = {
+  image: '图片',
+  video: '视频',
+  audio: '音频',
+};
+
+const CATEGORY_LABELS: Record<AssetPrimaryTab, string> = {
+  creative: '创作资产',
+  reference: '参考素材',
+  ip_teacher: 'IP老师',
+};
+
+const IP_TEACHER_LABELS: Record<IpTeacherTab, string> = {
+  all: '全部',
+  persona: '形象',
+  scene: '场景',
+};
+
+const ANNOTATION_FILTER_LABELS: Record<'all' | UsabilityStatus, string> = {
+  all: '全部标注',
+  pending: '待标注',
+  usable: '可用',
+  optimizable: '可优化',
+  unusable: '不可用',
+};
+
 const ANNOTATION_FILTERS: Array<{ key: 'all' | UsabilityStatus; label: string }> = [
   { key: 'all', label: '全部' },
   { key: 'pending', label: '待标注' },
@@ -45,15 +100,18 @@ const ANNOTATION_FILTERS: Array<{ key: 'all' | UsabilityStatus; label: string }>
 
 interface AssetCardProps {
   generation: Generation;
+  category: AssetPrimaryTab;
   onToggleFavorite: (id: string, current: boolean) => void;
   onPreview: (generation: Generation) => void;
   onOpenAnnotation: (generation: Generation, downloadIntent: boolean) => void;
+  onOpenDetail: (generation: Generation) => void;
 }
 
-function AssetCard({ generation: g, onToggleFavorite, onPreview, onOpenAnnotation }: AssetCardProps) {
+function AssetCard({ generation: g, category, onToggleFavorite, onPreview, onOpenAnnotation, onOpenDetail }: AssetCardProps) {
   const [hovered, setHovered] = useState(false);
   const previewImage = g.thumbnail_url ?? g.last_frame_url;
   const usabilityStatus = g.usability_status ?? 'pending';
+  const isCreative = category === 'creative';
 
   return (
     <div
@@ -61,18 +119,33 @@ function AssetCard({ generation: g, onToggleFavorite, onPreview, onOpenAnnotatio
       style={{ breakInside: 'avoid', marginBottom: '12px' }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onClick={() => onOpenDetail(g)}
     >
       <div className="relative">
         {previewImage ? (
           <img src={previewImage} alt={g.prompt} className="w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]" />
+        ) : g.asset_media_type === 'video' ? (
+          <div className="w-full aspect-video flex items-center justify-center bg-[#E6EDF5]">
+            <Video size={24} className="text-[#D8E2F0]" />
+          </div>
+        ) : g.asset_media_type === 'audio' ? (
+          <div className="w-full aspect-video flex items-center justify-center bg-[#E6EDF5]">
+            <Music4 size={24} className="text-[#D8E2F0]" />
+          </div>
         ) : (
           <div className="w-full aspect-video flex items-center justify-center bg-[#E6EDF5]">
             <ImageIcon size={24} className="text-[#D8E2F0]" />
           </div>
         )}
 
-        <div className={`absolute top-2 left-2 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${ANNOTATION_BADGE_STYLES[usabilityStatus]}`}>
-          {ANNOTATION_LABELS[usabilityStatus]}
+        {isCreative && (
+          <div className={`absolute top-2 left-2 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${ANNOTATION_BADGE_STYLES[usabilityStatus]}`}>
+            {ANNOTATION_LABELS[usabilityStatus]}
+          </div>
+        )}
+
+        <div className="absolute top-2 left-2 translate-y-6 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-[rgba(15,23,42,0.72)] text-white">
+          {MEDIA_LABELS[g.asset_media_type ?? 'video']}
         </div>
 
         {g.video_url && hovered && (
@@ -99,7 +172,7 @@ function AssetCard({ generation: g, onToggleFavorite, onPreview, onOpenAnnotatio
               <Star size={12} className={g.is_favorited ? 'fill-current' : ''} />
             </button>
             {g.video_url && (
-              usabilityStatus === 'pending' ? (
+              isCreative && usabilityStatus === 'pending' ? (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -122,62 +195,82 @@ function AssetCard({ generation: g, onToggleFavorite, onPreview, onOpenAnnotatio
       </div>
 
       <div className="p-3">
-        <p className="text-sm text-[#0F172A] leading-snug line-clamp-2 mb-2">{g.prompt}</p>
+        <p className="text-sm text-[#0F172A] leading-snug line-clamp-2 mb-2">{g.prompt || '未命名资产'}</p>
         <div className="flex items-center gap-1.5 mb-3 flex-wrap">
           <span className="tag text-[10px]">{g.category}</span>
           <span className="tag text-[10px]">{g.storyboard_type}</span>
-          <span className="tag text-[10px]">{g.aspect_ratio}</span>
-          <span className="tag text-[10px]">{g.duration}s</span>
+          <span className="tag text-[10px]">{MEDIA_LABELS[g.asset_media_type ?? 'video']}</span>
+          {g.ip_asset_type && <span className="tag text-[10px]">{g.ip_asset_type === 'persona' ? '形象' : '场景'}</span>}
         </div>
-        <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-[#F8FAFC] border border-[#E6EDF5] text-xs">
-          <div className="flex items-center gap-2 text-[#475569]">
-            <span className="text-[#94A3B8]">可用性标注：</span>
-            <span className={`inline-flex items-center rounded-full px-2 py-0.5 font-medium ${ANNOTATION_BADGE_STYLES[usabilityStatus]}`}>
-              {ANNOTATION_LABELS[usabilityStatus]}
-            </span>
+        {isCreative && (
+          <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-[#F8FAFC] border border-[#E6EDF5] text-xs">
+            <div className="flex items-center gap-2 text-[#475569]">
+              <span className="text-[#94A3B8]">可用性标注：</span>
+              <span className={`inline-flex items-center rounded-full px-2 py-0.5 font-medium ${ANNOTATION_BADGE_STYLES[usabilityStatus]}`}>
+                {ANNOTATION_LABELS[usabilityStatus]}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenAnnotation(g, false);
+              }}
+              className="text-[#1F8BFF] hover:text-[#1677FF] font-medium transition-colors"
+            >
+              {usabilityStatus === 'pending' ? '去标注' : '修改'}
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => onOpenAnnotation(g, false)}
-            className="text-[#1F8BFF] hover:text-[#1677FF] font-medium transition-colors"
-          >
-            {usabilityStatus === 'pending' ? '去标注' : '修改'}
-          </button>
-        </div>
+        )}
       </div>
     </div>
   );
 }
 
 export default function AssetsPage({ generations, onToggleFavorite }: AssetsPageProps) {
-  const [assetType, setAssetType] = useState<AssetType>('video');
+  const [activeCategory, setActiveCategory] = useState<AssetPrimaryTab>('creative');
+  const [activeMediaFilter, setActiveMediaFilter] = useState<AssetMediaFilter>('all');
+  const [activeIpTab, setActiveIpTab] = useState<IpTeacherTab>('all');
   const [favOnly, setFavOnly] = useState(false);
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [annotationFilter, setAnnotationFilter] = useState<'all' | UsabilityStatus>('all');
   const [previewTarget, setPreviewTarget] = useState<Generation | null>(null);
+  const [detailTarget, setDetailTarget] = useState<Generation | null>(null);
   const [annotationTarget, setAnnotationTarget] = useState<Generation | null>(null);
   const [downloadIntent, setDownloadIntent] = useState(false);
   const [localAnnotations, setLocalAnnotations] = useState<Record<string, UsabilityStatus>>({});
 
-  const completed = useMemo(() => generations.filter((g: Generation) => g.status === 'completed'), [generations]);
+  const creativeAssets = useMemo(() => generations.filter(g => (g.asset_category ?? 'creative') === 'creative' && g.status === 'completed'), [generations]);
+  const referenceAssets = useMemo(() => generations.filter(g => g.asset_category === 'reference'), [generations]);
+  const ipTeacherAssets = useMemo(() => generations.filter(g => g.asset_category === 'ip_teacher'), [generations]);
 
-  const filtered = useMemo(() => {
-    let items = completed;
-    if (assetType === 'image') {
-      items = items.filter(g => Boolean(g.thumbnail_url ?? g.last_frame_url));
+  const currentItems = useMemo(() => {
+    let items: Generation[] = [];
+    if (activeCategory === 'creative') items = creativeAssets;
+    if (activeCategory === 'reference') items = referenceAssets;
+    if (activeCategory === 'ip_teacher') {
+      items = ipTeacherAssets;
+      if (activeIpTab !== 'all') {
+        items = items.filter(g => g.ip_asset_type === activeIpTab);
+      }
     }
+
     if (favOnly) items = items.filter(g => g.is_favorited);
-    if (annotationFilter !== 'all') {
+    if (activeMediaFilter !== 'all') {
+      items = items.filter(g => g.asset_media_type === activeMediaFilter);
+    }
+    if (activeCategory === 'creative' && annotationFilter !== 'all') {
       items = items.filter(g => (localAnnotations[g.id] ?? g.usability_status ?? 'pending') === annotationFilter);
     }
     if (sortOrder === 'oldest') items = [...items].reverse();
+
     return items.map(item => ({
       ...item,
       usability_status: localAnnotations[item.id] ?? item.usability_status,
     }));
-  }, [completed, assetType, favOnly, annotationFilter, sortOrder, localAnnotations]);
+  }, [activeCategory, activeIpTab, creativeAssets, referenceAssets, ipTeacherAssets, favOnly, activeMediaFilter, annotationFilter, sortOrder, localAnnotations]);
 
-  const grouped = useMemo(() => groupByDate(filtered as Generation[]), [filtered]);
+  const grouped = useMemo(() => groupByDate(currentItems as Generation[]), [currentItems]);
 
   const triggerDownload = (generation: Generation | null) => {
     if (!generation?.video_url) return;
@@ -192,28 +285,65 @@ export default function AssetsPage({ generations, onToggleFavorite }: AssetsPage
   return (
     <>
       <div className="flex flex-col h-full bg-[#F5F7FB]">
-        <div className="px-6 py-4 bg-white border-b border-[#E6EDF5] flex-shrink-0">
+        <div className="px-6 py-4 bg-white border-b border-[#E6EDF5] flex-shrink-0 space-y-4">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-3">
               <h1 className="text-base font-bold text-[#0F172A]">资产</h1>
-              <span className="text-xs text-[#94A3B8] bg-[#EEF4FA] px-2 py-0.5 rounded-full font-mono">{filtered.length}</span>
+              <span className="text-xs text-[#94A3B8] bg-[#EEF4FA] px-2 py-0.5 rounded-full font-mono">{currentItems.length}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            {CATEGORY_TABS.map(tab => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => {
+                  setActiveCategory(tab.key);
+                  setActiveIpTab('all');
+                  setActiveMediaFilter('all');
+                  setAnnotationFilter('all');
+                }}
+                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${activeCategory === tab.key ? 'bg-[#0F172A] text-white' : 'bg-white border border-[#E6EDF5] text-[#475569] hover:border-[#CBD5E1]'}`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {activeCategory === 'ip_teacher' && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {IP_TEACHER_TABS.map(tab => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => {
+                    setActiveIpTab(tab.key);
+                    setActiveMediaFilter('all');
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${activeIpTab === tab.key ? 'bg-[#EAF3FF] text-[#1F8BFF] border border-[#B6E7FF]' : 'bg-white border border-[#E6EDF5] text-[#475569] hover:border-[#CBD5E1]'}`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <button onClick={() => setFavOnly(v => !v)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-all duration-200 ${favOnly ? 'bg-[#FEF3C7] text-[#D97706] border-[#FDE68A]' : 'bg-white text-[#475569] border border-[#E6EDF5] hover:border-[#D8E2F0]'}`}>
+              <Star size={14} className={favOnly ? 'fill-current text-[#F59E0B]' : ''} />
+              收藏
+            </button>
+
+            <div className="flex bg-[#F5F7FB] p-0.5 rounded-lg border border-[#E6EDF5]">
+              {MEDIA_FILTERS.map(filter => (
+                <button key={filter.key} onClick={() => setActiveMediaFilter(filter.key)} className={`px-3 py-1.5 rounded text-sm font-medium transition-all duration-200 ${activeMediaFilter === filter.key ? 'bg-white text-[#0F172A] shadow-sm' : 'text-[#7B8CA8] hover:text-[#475569]'}`}>
+                  {filter.label}
+                </button>
+              ))}
             </div>
 
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex bg-[#F5F7FB] p-0.5 rounded-lg border border-[#E6EDF5]">
-                {(['video', 'image'] as AssetType[]).map(t => (
-                  <button key={t} onClick={() => setAssetType(t)} className={`px-4 py-1.5 rounded text-sm font-medium transition-all duration-200 flex items-center gap-1.5 ${assetType === t ? 'bg-white text-[#0F172A] shadow-sm' : 'text-[#7B8CA8] hover:text-[#475569]'}`}>
-                    {t === 'video' ? <Play size={13} className={assetType === t ? 'text-[#1F8BFF]' : ''} /> : <ImageIcon size={13} />}
-                    {t === 'video' ? '视频' : '图片'}
-                  </button>
-                ))}
-              </div>
-
-              <button onClick={() => setFavOnly(v => !v)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-all duration-200 ${favOnly ? 'bg-[#FEF3C7] text-[#D97706] border-[#FDE68A]' : 'bg-white text-[#475569] border-[#E6EDF5] hover:border-[#D8E2F0]'}`}>
-                <Star size={14} className={favOnly ? 'fill-current text-[#F59E0B]' : ''} />
-                收藏
-              </button>
-
+            {activeCategory === 'creative' && (
               <div className="flex bg-[#F5F7FB] p-0.5 rounded-lg border border-[#E6EDF5]">
                 {ANNOTATION_FILTERS.map(filter => (
                   <button key={filter.key} onClick={() => setAnnotationFilter(filter.key)} className={`px-3 py-1.5 rounded text-sm font-medium transition-all duration-200 ${annotationFilter === filter.key ? 'bg-white text-[#0F172A] shadow-sm' : 'text-[#7B8CA8] hover:text-[#475569]'}`}>
@@ -221,35 +351,45 @@ export default function AssetsPage({ generations, onToggleFavorite }: AssetsPage
                   </button>
                 ))}
               </div>
+            )}
 
-              <div className="relative group">
-                <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border border-[#E6EDF5] bg-white text-[#475569] hover:border-[#D8E2F0] transition-all duration-200">
-                  {sortOrder === 'newest' ? '最新优先' : '最早优先'}
-                </button>
-                <div className="absolute right-0 top-full mt-1.5 hidden group-hover:block bg-white rounded-lg shadow-elevated border border-[#E6EDF5] overflow-hidden z-20 w-32 animate-fade-in">
-                  {(['newest', 'oldest'] as const).map(o => (
-                    <button key={o} onClick={() => setSortOrder(o)} className={`w-full text-left px-3 py-2 text-sm transition-colors ${sortOrder === o ? 'bg-[#EAF3FF] text-[#1F8BFF]' : 'text-[#475569] hover:bg-[#F5F9FF]'}`}>
-                      {o === 'newest' ? '最新优先' : '最早优先'}
-                    </button>
-                  ))}
-                </div>
+            <div className="relative group">
+              <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border border-[#E6EDF5] bg-white text-[#475569] hover:border-[#D8E2F0] transition-all duration-200">
+                {sortOrder === 'newest' ? '最新优先' : '最早优先'}
+              </button>
+              <div className="absolute right-0 top-full mt-1.5 hidden group-hover:block bg-white rounded-lg shadow-elevated border border-[#E6EDF5] overflow-hidden z-20 w-32 animate-fade-in">
+                {SORT_OPTIONS.map(o => (
+                  <button key={o.key} onClick={() => setSortOrder(o.key)} className={`w-full text-left px-3 py-2 text-sm transition-colors ${sortOrder === o.key ? 'bg-[#EAF3FF] text-[#1F8BFF]' : 'text-[#475569] hover:bg-[#F5F9FF]'}`}>
+                    {o.label}
+                  </button>
+                ))}
               </div>
             </div>
+          </div>
+
+          <div className="px-3 py-2 rounded-lg bg-[#F8FAFC] border border-[#E6EDF5] text-xs text-[#64748B]">
+            当前筛选：{CATEGORY_LABELS[activeCategory]}
+            {activeCategory === 'ip_teacher' ? ` / ${IP_TEACHER_LABELS[activeIpTab]}` : ''}
+            {` / ${MEDIA_FILTERS.find(item => item.key === activeMediaFilter)?.label ?? '全部'}`}
+            {activeCategory === 'creative' ? ` / ${ANNOTATION_FILTER_LABELS[annotationFilter]}` : ''}
+            {favOnly ? ' / 已开启收藏筛选' : ''}
+            {` / ${SORT_OPTIONS.find(item => item.key === sortOrder)?.label ?? '最新优先'}`}
+            {` / 当前结果 ${currentItems.length} 个`}
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5">
-          {filtered.length === 0 ? (
+          {currentItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 gap-4">
               <div className="w-16 h-16 rounded-2xl bg-white shadow-card flex items-center justify-center">
                 <Grid3X3 size={28} className="text-[#D8E2F0]" />
               </div>
               <div className="text-center">
                 <p className="text-base font-semibold text-[#475569]">暂无资产</p>
-                <p className="text-sm text-[#94A3B8] mt-1">生成完成的内容将自动归档到这里</p>
+                <p className="text-sm text-[#94A3B8] mt-1">当前分类下暂无可展示资产</p>
               </div>
             </div>
-          ) : (
+          ) : activeCategory === 'creative' ? (
             <div className="space-y-8">
               {Array.from(grouped.entries()).map(([date, items]: [string, Generation[]]) => (
                 <div key={date}>
@@ -260,10 +400,16 @@ export default function AssetsPage({ generations, onToggleFavorite }: AssetsPage
                   </div>
                   <div style={{ columns: '3 240px', gap: '12px' }}>
                     {items.map((g: Generation) => (
-                      <AssetCard key={g.id} generation={g} onToggleFavorite={onToggleFavorite} onPreview={setPreviewTarget} onOpenAnnotation={(generation, intent) => { setAnnotationTarget(generation); setDownloadIntent(intent); }} />
+                      <AssetCard key={g.id} generation={g} category={activeCategory} onToggleFavorite={onToggleFavorite} onPreview={setPreviewTarget} onOpenAnnotation={(generation, intent) => { setAnnotationTarget(generation); setDownloadIntent(intent); }} onOpenDetail={setDetailTarget} />
                     ))}
                   </div>
                 </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ columns: '3 240px', gap: '12px' }}>
+              {currentItems.map((g: Generation) => (
+                <AssetCard key={g.id} generation={g} category={activeCategory} onToggleFavorite={onToggleFavorite} onPreview={setPreviewTarget} onOpenAnnotation={(generation, intent) => { setAnnotationTarget(generation); setDownloadIntent(intent); }} onOpenDetail={setDetailTarget} />
               ))}
             </div>
           )}
@@ -271,6 +417,7 @@ export default function AssetsPage({ generations, onToggleFavorite }: AssetsPage
       </div>
 
       <VideoPreviewModal open={Boolean(previewTarget)} generation={previewTarget} onClose={() => setPreviewTarget(null)} />
+      <AssetDetailDrawer open={Boolean(detailTarget)} asset={detailTarget} onClose={() => setDetailTarget(null)} />
       <UsabilityAnnotationModal
         open={Boolean(annotationTarget)}
         generation={annotationTarget}

@@ -6,6 +6,8 @@ export type MediaType = 'image' | 'video' | 'audio';
 export type CategoryType = '太极' | '唱歌' | '瑜伽' | '普拉提' | '手机摄影';
 export type StoryboardType = '口播类' | '情景类' | 'IP代练';
 export type UsabilityStatus = 'pending' | 'usable' | 'optimizable' | 'unusable';
+export type AssetCategory = 'creative' | 'reference' | 'ip_teacher';
+export type IpAssetType = 'persona' | 'scene' | null;
 
 export interface GenerationAsset {
   name: string;
@@ -28,6 +30,9 @@ export interface Generation {
   duration: number;
   generate_audio: boolean;
   watermark: boolean;
+  asset_category: AssetCategory;
+  asset_media_type: MediaType;
+  ip_asset_type: IpAssetType;
   status: GenerationStatus;
   video_url: string | null;
   thumbnail_url: string | null;

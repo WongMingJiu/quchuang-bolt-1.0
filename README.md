@@ -14,16 +14,16 @@ ARK_API_KEY=your-ark-api-key
 ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
 ARK_SEEDANCE_MODEL=doubao-seedance-2-0-260128
 SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
-PROMPT_EXPANDER_BASE_URL=https://www.packyapi.com/v1/chat/completions
+PROMPT_EXPANDER_BASE_URL=https://api-slb.packyapi.com/v1/chat/completions
 PROMPT_EXPANDER_API_KEY=your-packycode-api-key
-PROMPT_EXPANDER_MODEL=MiniMax-M2.7
-VITE_API_PROXY_TARGET=http://localhost:3010
-LOCAL_PROMPT_EXPAND_PORT=3010
+PROMPT_EXPANDER_MODEL=gpt-5.4-high
+VITE_API_PROXY_TARGET=http://localhost:3011
+LOCAL_PROMPT_EXPAND_PORT=3011
 ```
 
 3. 启动本地提示词扩写 API：`npm run dev:prompt-api`
 4. 启动前端开发服务：`npm run dev -- --host 0.0.0.0`
-5. 打开浏览器访问终端输出的 Vite 地址（通常是 `http://localhost:5173/`）
+5. 打开浏览器访问终端输出的 Vite 地址（通常是 `http://localhost:5173` ~ `http://localhost:5177`）
 
 ### 开发模式说明
 
@@ -33,6 +33,7 @@ LOCAL_PROMPT_EXPAND_PORT=3010
 - 本地提示词扩写默认推荐走“轻量本地 API + Vite 代理”模式，不再依赖 `vercel dev` 稳定性。
 - 前端继续请求 `/api/prompt-expand`，Vite 只会把这一个路由通过 `VITE_API_PROXY_TARGET` 转发到本地 prompt expansion API。
 - 本地轻量 API 仅服务提示词扩写，不承接视频生成或其他 `/api/*` 路由；视频生成仍应走原有后端路径。
+- 线上 `prompt-expand` 仍然走 Vercel Functions 的 `api/prompt-expand.ts`，本地轻量 API 只是开发替身，不影响未来继续发布到 Vercel。
 - `PROMPT_EXPANDER_BASE_URL`、`PROMPT_EXPANDER_API_KEY`、`PROMPT_EXPANDER_MODEL` 直接从本地环境变量读取；如需同步 Vercel Development 环境变量，可手动执行 `npx vercel env pull .env.vercel.local` 再拷贝所需值。
 - 当前代码按 OpenAI 兼容接口方式使用 `Authorization: Bearer <key>`；如果本地 `/api/prompt-expand` 返回 401，说明本地链路已通，下一步应检查 PackyCode key、账号权限或接口配置，而不是继续排查 Vite / 本地 API 代理。
 

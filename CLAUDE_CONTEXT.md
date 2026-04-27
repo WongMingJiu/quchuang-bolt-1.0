@@ -40,18 +40,19 @@
   - 后端 `/api/admin/*` 文件先独立落地，后续再统一接真实数据与本地代理
 
 # 当前任务
-提示词扩写优化：在创作页正式提示词框上方增加一个轻量扩写助手区，通过中转站 URL + API 调用官方 `sd2-pe` skill，对草稿提示词进行优化，并支持选择候选结果后覆盖正式提示词框。
+提示词扩写优化：基于 PackyCode OpenAI 兼容接口和 `MiniMax-M2.7`，把当前扩写能力从单次 system prompt 调用，逐步升级为三阶段后端工作流（输入解析 → 结构化补全 → 候选生成），并继续保持“结果可直接覆盖正式提示词框”的交互。
 
 # 下一步计划
-1. 先做 `PromptExpansionPanel` 的前端骨架，并用 mock 扩写结果跑通交互
-2. 再新增 `api/_prompt-expander.ts` 与 `api/prompt-expand.ts`，接中转站 URL 和 `sd2-pe`
-3. 最后再把前端从 mock 切到真实扩写接口，并补齐 loading / error 状态
+1. 保留当前前端可见的扩写区与候选覆盖交互
+2. 将后端重构为三阶段工作流（先实现输入解析 + 候选生成）
+3. 再把前端从当前基础扩写调用，升级为更像 `sd2-pe` 的工作流结果输出
 
 # 当前风险 / 注意事项
 - 管理中心当前仍以 mock 驱动为主，不应误判为已经完成真实数据接入。
 - 本地 `vite dev` 直接访问 `/api/admin/*` 可能得到非 JSON 响应，导致 `Unexpected token` 错误；需要后续统一处理本地 API 代理 / Vercel dev。
 - 当前决策：管理中心真实数据接入暂缓，优先保持其前端骨架稳定可演示。
 - 资产体系第一版已经完成，但真实 Supabase 数据如果未按 `asset_category / asset_media_type / ip_asset_type` 正确补值，页面展示仍会受到影响。
+- 提示词扩写当前已具备前端骨架、PackyCode 接入和后端路由，但输出质量仍未完全达到官方 `sd2-pe` skill 风格，需要进一步升级为三阶段工作流。
 - `quchuang-bolt-1.0/` 目录不要误提交。
 - `.claude/` 目录不要提交。
 - 标注功能依赖数据库字段，确保相关 migration 已执行。

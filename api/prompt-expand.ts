@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { callPromptExpander } from './_prompt-expander.js';
+import { getPromptExpandErrorMessage, handlePromptExpandRequest } from './_prompt-expand-service.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -13,14 +13,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'draftPrompt is required.' });
     }
 
-    const result = await callPromptExpander({ draftPrompt: draftPrompt.trim() });
-
-    const items = Array.isArray(result?.items) ? result.items : [];
+    const items = await handlePromptExpandRequest(draftPrompt);
 
     return res.status(200).json({ items });
   } catch (error) {
     return res.status(500).json({
-      error: error instanceof Error ? error.message : 'Prompt expansion failed.',
+      error: getPromptExpandErrorMessage(error),
     });
   }
 }

@@ -4,44 +4,51 @@ interface PromptExpansionPanelProps {
   onUsePrompt: (value: string) => void;
 }
 
-const mockExpandedPrompts = [
-  {
-    id: 'opt-1',
-    title: '优化结果 1',
-    prompt: '一位太极老师在清晨竹林空地上缓缓演示云手动作，镜头稳定推近，晨雾轻盈，光线柔和，人物动作连贯自然，4K高清，面部稳定不变形，细节丰富。',
-  },
-  {
-    id: 'opt-2',
-    title: '优化结果 2',
-    prompt: '太极老师身穿简洁练功服，在安静庭院中进行教学示范，先缓慢抬手再转腰带动手臂，镜头固定机位，中景拍摄，清晨自然光，画面稳定，动作清晰，人物比例准确。',
-  },
-  {
-    id: 'opt-3',
-    title: '优化结果 3',
-    prompt: '一名太极老师在古风院落前完整演示起势与云手动作，镜头轻微向前推近，风吹树叶，环境安静沉稳，整体东方气质，画质细腻，人物面部与手部动作自然真实，无穿模。',
-  },
-];
+interface PromptExpansionItem {
+  id: string;
+  title: string;
+  prompt: string;
+}
 
 export default function PromptExpansionPanel({ onUsePrompt }: PromptExpansionPanelProps) {
   const [draftPrompt, setDraftPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [items, setItems] = useState<typeof mockExpandedPrompts>([]);
+  const [items, setItems] = useState<PromptExpansionItem[]>([]);
 
   const handleExpand = async () => {
     if (!draftPrompt.trim()) {
+      setItems([]);
       setError('请先输入待扩写的提示词草稿。');
       return;
     }
 
     setLoading(true);
     setError(null);
+    setItems([]);
     try {
-      await new Promise(resolve => setTimeout(resolve, 400));
-      setItems(mockExpandedPrompts.map(item => ({
-        ...item,
-        prompt: item.prompt.replace('太极老师', draftPrompt.trim()),
-      })));
+      const response = await fetch('/api/prompt-expand', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          draftPrompt: draftPrompt.trim(),
+        }),
+      });
+
+      const text = await response.text();
+      const result = text ? JSON.parse(text) : {};
+      if (!response.ok) {
+        throw new Error(result.error ?? '提示词扩写失败，请稍后重试。');
+      }
+
+      const nextItems = Array.isArray(result.items) ? result.items : [];
+      if (!nextItems.length) {
+        throw new Error('扩写服务未返回可用候选结果，请稍后重试。');
+      }
+
+      setItems(nextItems);
     } catch (err) {
       setError(err instanceof Error ? err.message : '提示词扩写失败，请稍后重试。');
     } finally {
@@ -80,6 +87,12 @@ export default function PromptExpansionPanel({ onUsePrompt }: PromptExpansionPan
       {error && (
         <div className="px-3 py-2 rounded-xl bg-[#FEF2F2] border border-[#FECACA] text-sm text-[#B91C1C]">
           {error}
+        </div>
+      )}
+
+      {!loading && !error && items.length === 0 && (
+        <div className="px-3 py-2 rounded-xl border border-dashed border-[#D7E3F4] text-sm text-[#7B8CA8]">
+          暂无扩写结果，输入草稿后点击“扩写提示词”开始生成。
         </div>
       )}
 

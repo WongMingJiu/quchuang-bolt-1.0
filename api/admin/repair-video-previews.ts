@@ -11,6 +11,17 @@ interface RepairFailure {
   id: string;
   provider_task_id: string;
   reason: string;
+  unrecoverable?: boolean;
+}
+
+function classifyRepairFailure(error: unknown) {
+  const reason = error instanceof Error ? error.message : 'Unknown repair error';
+  const unrecoverable = reason.includes('ResourceNotFound');
+
+  return {
+    reason: unrecoverable ? '视频源已失效，无法恢复预览' : reason,
+    unrecoverable,
+  };
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -63,10 +74,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         repaired += 1;
       } catch (repairError) {
         failed += 1;
+        const failure = classifyRepairFailure(repairError);
+
+        if (failure.unrecoverable) {
+          await serverSupabase
+            .from('generations')
+            .update({
+              error_message: failure.reason,
+            })
+            .eq('id', item.id);
+        }
+
         failures.push({
           id: String(item.id),
           provider_task_id: String(item.provider_task_id),
-          reason: repairError instanceof Error ? repairError.message : 'Unknown repair error',
+          reason: failure.reason,
+          unrecoverable: failure.unrecoverable,
         });
       }
     }

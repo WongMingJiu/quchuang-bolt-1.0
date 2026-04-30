@@ -118,6 +118,7 @@ function AssetCard({ generation: g, category, onToggleFavorite, onPreview, onOpe
   const previewImage = g.thumbnail_url ?? g.last_frame_url;
   const usabilityStatus = g.usability_status ?? 'pending';
   const isCreative = category === 'creative';
+  const isUnrecoverablePreview = g.status === 'completed' && g.error_message === '视频源已失效，无法恢复预览';
 
   return (
     <div
@@ -163,7 +164,13 @@ function AssetCard({ generation: g, category, onToggleFavorite, onPreview, onOpe
           {MEDIA_LABELS[g.asset_media_type ?? 'video']}
         </div>
 
-        {g.video_url && hovered && (
+        {isUnrecoverablePreview && (
+          <div className="absolute inset-x-2 bottom-2 rounded-lg bg-[rgba(127,29,29,0.88)] px-2.5 py-2 text-[11px] text-white shadow-lg z-10">
+            视频源已失效，无法恢复预览
+          </div>
+        )}
+
+        {g.video_url && hovered && !isUnrecoverablePreview && (
           <button
             type="button"
             onClick={(e) => {

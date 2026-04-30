@@ -56,6 +56,7 @@ export default function HistoryCard({ generation: g, onRefill, onRegenerate, onD
   const isGenerating = g.status === 'generating';
   const isFailed = g.status === 'failed';
   const isCompleted = g.status === 'completed';
+  const isUnrecoverablePreview = isCompleted && g.error_message === '视频源已失效，无法恢复预览';
   const previewImage = g.thumbnail_url ?? g.last_frame_url;
   const usabilityStatus = localStatus;
 
@@ -105,7 +106,13 @@ export default function HistoryCard({ generation: g, onRefill, onRegenerate, onD
             {ANNOTATION_LABELS[usabilityStatus]}
           </div>
 
-          {isCompleted && g.video_url && hovered && (
+          {isUnrecoverablePreview && (
+            <div className="absolute inset-x-2 bottom-2 rounded-lg bg-[rgba(127,29,29,0.88)] px-2.5 py-2 text-[11px] text-white shadow-lg">
+              视频源已失效，无法恢复预览
+            </div>
+          )}
+
+          {isCompleted && g.video_url && hovered && !isUnrecoverablePreview && (
             <button
               type="button"
               onClick={(e) => {

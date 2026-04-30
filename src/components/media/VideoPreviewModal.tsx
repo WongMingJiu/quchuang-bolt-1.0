@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { X, Maximize2, Pause, Play, Volume2, VolumeX, Download, Keyboard, Clock3 } from 'lucide-react';
+import { X, Maximize2, Pause, Play, Volume2, VolumeX, Download, Keyboard, Clock3, AlertCircle } from 'lucide-react';
 import type { Generation } from '../../types';
 
 interface VideoPreviewModalProps {
@@ -32,6 +32,7 @@ export default function VideoPreviewModal({ open, generation, onClose }: VideoPr
   const videoRef = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [muted, setMuted] = useState(false);
@@ -42,10 +43,17 @@ export default function VideoPreviewModal({ open, generation, onClose }: VideoPr
       videoRef.current.currentTime = 0;
       setPlaying(false);
       setLoading(false);
+      setLoadError(null);
       setCurrentTime(0);
       setDuration(0);
     }
   }, [open]);
+
+  useEffect(() => {
+    if (open) {
+      setLoadError(null);
+    }
+  }, [open, generation?.id, generation?.video_url]);
 
   useEffect(() => {
     const handleKeyDown = async (event: KeyboardEvent) => {
@@ -162,9 +170,18 @@ export default function VideoPreviewModal({ open, generation, onClose }: VideoPr
         </div>
 
         <div className="bg-black relative">
-          {loading && (
+          {loading && !loadError && (
             <div className="absolute inset-0 flex items-center justify-center bg-[rgba(0,0,0,0.35)] z-10 text-white text-sm">
               正在加载视频...
+            </div>
+          )}
+          {loadError && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[rgba(0,0,0,0.6)] px-6 text-center text-white">
+              <AlertCircle size={24} className="text-[#FCA5A5]" />
+              <div>
+                <p className="text-sm font-medium">视频预览加载失败</p>
+                <p className="mt-1 text-xs text-[rgba(255,255,255,0.72)]">{loadError}</p>
+              </div>
             </div>
           )}
           <video
@@ -177,10 +194,21 @@ export default function VideoPreviewModal({ open, generation, onClose }: VideoPr
             onPlay={() => setPlaying(true)}
             onPause={() => setPlaying(false)}
             onWaiting={() => setLoading(true)}
-            onPlaying={() => setLoading(false)}
-            onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || 0)}
+            onPlaying={() => {
+              setLoading(false);
+              setLoadError(null);
+            }}
+            onLoadedMetadata={(e) => {
+              setLoading(false);
+              setDuration(e.currentTarget.duration || 0);
+            }}
             onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
             onVolumeChange={(e) => setMuted(e.currentTarget.muted)}
+            onError={() => {
+              setLoading(false);
+              setPlaying(false);
+              setLoadError('请检查视频地址是否有效、资源是否可公开访问，或是否存在跨域/鉴权限制。');
+            }}
             className="w-full max-h-[78vh] bg-black"
           />
         </div>

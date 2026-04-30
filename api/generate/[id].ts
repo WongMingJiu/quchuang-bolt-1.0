@@ -1,21 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { arkFetch, serverSupabase } from '../_seedance.js';
-
-function extractTaskVideoUrl(payload: any): string | null {
-  return payload?.content?.video_url ?? null;
-}
-
-function extractTaskThumbnailUrl(payload: any): string | null {
-  return payload?.content?.thumbnail_url ?? payload?.thumbnail_url ?? null;
-}
-
-function extractTaskLastFrameUrl(payload: any): string | null {
-  return payload?.content?.last_frame_url ?? payload?.last_frame_url ?? null;
-}
-
-function extractTaskError(payload: any): string | null {
-  return payload?.error?.message ?? payload?.error_message ?? (typeof payload?.error === 'string' ? payload.error : null);
-}
+import {
+  extractTaskError,
+  extractTaskLastFrameUrl,
+  extractTaskThumbnailUrl,
+  extractTaskVideoUrl,
+} from '../_seedance-task-result.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
